@@ -129,6 +129,11 @@ async def on_message(message: discord.Message):
         logger.info(f"Detected '{detected}' message in '{target}' channel → Translated to {SUPPORTED[target]}")
     except Exception as e:
         logger.error(f"Translation error: {e}")
+    # Allow other commands (if any) to be processed
+    try:
+        await bot.process_commands(message)
+    except Exception:
+        pass
 
 
 if __name__ == '__main__':
@@ -141,9 +146,3 @@ if __name__ == '__main__':
 # 1. On Replit, add Secrets: TOKEN (your bot token), optionally GUILD_ID for fast slash command sync.
 # 2. Press Run. The bot will start and sync slash commands. Use /setlang <code> in a channel to set its language.
 # 3. Send messages in languages different from the channel language — the bot will translate and reply.
-def main():
-    print("Hello from repl-nix-workspace!")
-
-
-if __name__ == "__main__":
-    main()
