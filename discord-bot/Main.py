@@ -46,6 +46,12 @@ async def on_ready():
                     print(f"⚠️ Failed to load {module}: {e}")
 
     print(f"📦 تم محاولة تحميل Cogs — محمَّلة: {loaded}")
+    # Log loaded cogs and prefix commands for debugging
+    try:
+        commands_list = [c.name for c in bot.commands]
+        print(f"🔧 Registered prefix commands: {commands_list}")
+    except Exception as e:
+        print(f"⚠️ Could not list prefix commands: {e}")
     # Sync application commands (slash commands). If GUILD_ID set, sync to that guild for fast registration.
     guild_id = os.getenv('GUILD_ID')
     try:
