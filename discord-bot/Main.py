@@ -15,6 +15,26 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+
+@bot.event
+async def on_command_error(ctx, error):
+    # Provide extra logging for CommandNotFound so we can diagnose which process received the message
+    if isinstance(error, commands.CommandNotFound):
+        try:
+            registered = [c.name for c in bot.commands]
+        except Exception:
+            registered = []
+        print(f"⚠️ CommandNotFound: attempted='{ctx.message.content}' author={ctx.author}({getattr(ctx.author, 'id', None)}) registered={registered}")
+        # Friendly channel hint
+        try:
+            await ctx.send("Command not found. Try `!listappcommands` to see available debug commands.")
+        except Exception:
+            pass
+        return
+
+    # Default logging for other errors
+    print(f"❗Unhandled command error: {error}")
+
 @bot.event
 async def on_ready():
     print(f"✅ تم تسجيل الدخول كبوت: {bot.user}")
