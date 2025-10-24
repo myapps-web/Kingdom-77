@@ -32,8 +32,9 @@ async def on_ready():
                 rel = os.path.relpath(file_path, start=os.path.normpath(os.path.join(project_root, '..')))
                 module = rel.replace(os.sep, '.')[:-3]  # remove .py
                 try:
-                    # load_extension is a regular function
-                    bot.load_extension(module)
+                    # In discord.py 2.x load_extension is a coroutine because extensions
+                    # can define async `setup(bot)` functions. Await it to support both.
+                    await bot.load_extension(module)
                     loaded += 1
                     print(f"✅ Loaded: {module}")
                 except Exception as e:
