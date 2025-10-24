@@ -137,8 +137,17 @@ async def on_message(message: discord.Message):
     content = message.content.strip()
     if not content:
         return
-    # ignore commands
-    if content.startswith('/') or content.startswith('!'):
+    # If this message is a prefix command (starts with '!'), let the command processor handle it.
+    if content.startswith('!'):
+        try:
+            await bot.process_commands(message)
+        except Exception:
+            pass
+        return
+
+    # Slash commands are interactions and won't appear as message content; ignore literal messages
+    # that start with '/' to avoid accidental translations of written slashes.
+    if content.startswith('/'):
         return
 
     try:
