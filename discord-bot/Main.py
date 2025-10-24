@@ -46,5 +46,17 @@ async def on_ready():
                     print(f"⚠️ Failed to load {module}: {e}")
 
     print(f"📦 تم محاولة تحميل Cogs — محمَّلة: {loaded}")
+    # Sync application commands (slash commands). If GUILD_ID set, sync to that guild for fast registration.
+    guild_id = os.getenv('GUILD_ID')
+    try:
+        if guild_id:
+            guild = discord.Object(id=int(guild_id))
+            await bot.tree.sync(guild=guild)
+            print(f"🔁 Synced app commands to guild {guild_id}")
+        else:
+            await bot.tree.sync()
+            print("🔁 Synced app commands globally")
+    except Exception as e:
+        print(f"⚠️ Failed to sync app commands: {e}")
 
 bot.run(os.getenv("TOKEN"))

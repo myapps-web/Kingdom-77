@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 modules = ["python-3.11"]
 [agent]
 expertMode = true
@@ -27,3 +28,6 @@ args = "cd discord-bot && python Main.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
+=======
+run = "python3 -u discord-bot/Main.py"
+>>>>>>> 5b83b87dc08990a6c096fd9808f424c0af6cb71a
