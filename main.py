@@ -56,9 +56,27 @@ translator = Translator()
 channel_langs = load_channels()
 
 
+# Simple ping command to verify prefix commands work in guilds
+@bot.command(name='ping')
+async def ping(ctx: commands.Context):
+    """Simple test command to verify prefix commands are received and respond."""
+    await ctx.send('Pong!')
+
+
 @bot.event
 async def on_ready():
     logger.info(f"Logged in as {bot.user}")
+    # Log which application (slash) commands are currently registered in the tree
+    try:
+        cmds = [c.name for c in bot.tree.walk_commands()]
+        if cmds:
+            logger.info(f"Application commands present: {cmds}")
+        else:
+            logger.info("No application commands found in bot.tree.")
+            if not GUILD_ID:
+                logger.info("Note: No GUILD_ID set — global registration can take up to an hour. Set GUILD_ID in Replit Secrets for fast guild sync.")
+    except Exception as e:
+        logger.debug(f"Could not list app commands: {e}")
     # Sync slash commands
     try:
         if GUILD_ID:
