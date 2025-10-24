@@ -63,6 +63,20 @@ async def ping(ctx: commands.Context):
     await ctx.send('Pong!')
 
 
+@bot.command(name='listappcommands')
+async def list_app_commands(ctx: commands.Context):
+    """Return a short list of application (slash) commands currently present in bot.tree."""
+    try:
+        cmds = [c.name for c in bot.tree.walk_commands()]
+        if not cmds:
+            await ctx.send("No application commands are currently registered in bot.tree.")
+            return
+        # Keep message short if there are many
+        await ctx.send(f"App commands: {', '.join(cmds[:25])}{'...' if len(cmds) > 25 else ''}")
+    except Exception as e:
+        await ctx.send(f"Error listing app commands: {e}")
+
+
 @bot.event
 async def on_ready():
     logger.info(f"Logged in as {bot.user}")
