@@ -1,3 +1,5 @@
 discord.py
 python-dotenv
 deep-translator
+deep-translator
+requests
