@@ -1,0 +1,44 @@
+import discord
+from discord.ext import commands
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+@bot.event
+async def on_ready():
+    print(f"✅ تم تسجيل الدخول كبوت: {bot.user}")
+    # تحميل جميع Cogs الموجودة في المشروع (يدعم الهيكل cogs/cogs/*.py)
+    project_root = os.path.dirname(__file__)
+    # المسار المتوقع للموديلات: ../cogs/cogs
+    candidate = os.path.normpath(os.path.join(project_root, '..', 'cogs', 'cogs'))
+    if not os.path.isdir(candidate):
+        # بدل احتياطي: جرب ../cogs
+        candidate = os.path.normpath(os.path.join(project_root, '..', 'cogs'))
+
+    loaded = 0
+    if os.path.isdir(candidate):
+        for root, _, files in os.walk(candidate):
+            for filename in files:
+                if not filename.endswith('.py') or filename == '__init__.py':
+                    continue
+                file_path = os.path.join(root, filename)
+                # احسب مسار الوحدة (module path) نسبةً إلى مجلد المشروع الأعلى (parent of discord-bot)
+                rel = os.path.relpath(file_path, start=os.path.normpath(os.path.join(project_root, '..')))
+                module = rel.replace(os.sep, '.')[:-3]  # remove .py
+                try:
+                    # load_extension is a regular function
+                    bot.load_extension(module)
+                    loaded += 1
+                    print(f"✅ Loaded: {module}")
+                except Exception as e:
+                    print(f"⚠️ Failed to load {module}: {e}")
+
+    print(f"📦 تم محاولة تحميل Cogs — محمَّلة: {loaded}")
+
+bot.run(os.getenv("TOKEN"))
