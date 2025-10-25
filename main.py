@@ -137,6 +137,8 @@ async def help(interaction: discord.Interaction):
         '`/removelang [channel]` - Remove language setting for a channel',
         '`/listchannels` - List all channels with their language settings',
         '`/sync` - Manually sync bot commands (Admin only)',
+        '`/clear_commands` - Remove duplicate commands (Admin only)',
+        '`/debug` - Show bot debug information (Admin only)',
         '`/ping` - Check if the bot is responsive',
         '`/help` - Show this help message'
     ]
@@ -148,7 +150,8 @@ async def help(interaction: discord.Interaction):
 
 @bot.tree.command(name='sync', description='Manually sync bot commands to this server (Admin only)')
 async def sync_commands(interaction: discord.Interaction):
-    """Manually sync commands to the current guild. Requires administrator permission."""
+    """Manually sync commands to the current guild. Useful for new servers or if commands don't appear.
+    Note: This creates guild-specific commands which may appear alongside global commands."""
     if not interaction.user.guild_permissions.administrator:
         emb = make_embed(
             title='Permission Denied',
@@ -167,7 +170,7 @@ async def sync_commands(interaction: discord.Interaction):
         
         emb = make_embed(
             title='Sync Complete',
-            description=f'✅ Successfully synced commands to **{guild.name}**\n\nAll slash commands should now be available.',
+            description=f'✅ Successfully synced commands to **{guild.name}**\n\n⚠️ **Note:** If you see duplicate commands, restart Discord or wait for global sync to complete (up to 1 hour).\n\nTo remove duplicates, you may need to kick and re-invite the bot.',
             color=discord.Color.green()
         )
         await interaction.followup.send(embed=emb, ephemeral=True)
@@ -238,6 +241,44 @@ async def debug_info(interaction: discord.Interaction):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
+@bot.tree.command(name='clear_commands', description='Clear guild-specific commands to remove duplicates (Admin only)')
+async def clear_commands(interaction: discord.Interaction):
+    """Clear guild-specific commands. Useful if you see duplicate commands.
+    Global commands will remain and take up to 1 hour to appear."""
+    if not interaction.user.guild_permissions.administrator:
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need Administrator permission to use this command.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        guild = interaction.guild
+        # Clear all guild-specific commands
+        bot.tree.clear_commands(guild=guild)
+        await bot.tree.sync(guild=guild)
+        
+        emb = make_embed(
+            title='Commands Cleared',
+            description=f'✅ Cleared guild-specific commands from **{guild.name}**\n\n⚠️ **Note:** Global commands will remain active (may take up to 1 hour to appear).\n\nIf commands still appear duplicated:\n1. Restart your Discord app\n2. Wait a few minutes for changes to propagate\n3. If still duplicated, kick and re-invite the bot',
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=emb, ephemeral=True)
+        logger.info(f"Cleared guild commands for {guild.name} by {interaction.user}")
+    except Exception as e:
+        emb = make_embed(
+            title='Clear Failed',
+            description=f'❌ Failed to clear commands: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=emb, ephemeral=True)
+        logger.error(f"Clear commands failed for {interaction.guild.name}: {e}")
+
+
 @bot.event
 async def on_ready():
     logger.info(f"Logged in as {bot.user}")
@@ -253,34 +294,19 @@ async def on_ready():
     except Exception as e:
         logger.debug(f"Could not list app commands: {e}")
     
-    # Sync slash commands to all guilds
+    # Sync slash commands globally (one time only)
     try:
         if GUILD_ID:
-            # If GUILD_ID is specified, sync to that specific guild only (for testing)
+            # If GUILD_ID is specified, sync to that specific guild only (for fast testing)
             guild = discord.Object(id=int(GUILD_ID))
             bot.tree.copy_global_to(guild=guild)
             await bot.tree.sync(guild=guild)
             logger.info(f"Synced app commands to guild {GUILD_ID}")
         else:
-            # Sync to all guilds the bot is in (faster than global sync)
-            synced_count = 0
-            for guild in bot.guilds:
-                try:
-                    bot.tree.copy_global_to(guild=guild)
-                    await bot.tree.sync(guild=guild)
-                    synced_count += 1
-                    logger.info(f"Synced commands to {guild.name} (ID: {guild.id})")
-                except Exception as e:
-                    logger.error(f"Failed to sync to {guild.name}: {e}")
-            
-            logger.info(f"Successfully synced commands to {synced_count}/{len(bot.guilds)} servers")
-            
-            # Also do a global sync as backup (takes up to 1 hour to propagate)
-            try:
-                await bot.tree.sync()
-                logger.info("Global sync completed (may take up to 1 hour to propagate)")
-            except Exception as e:
-                logger.warning(f"Global sync failed: {e}")
+            # Do global sync (commands will be available in all servers)
+            # This takes up to 1 hour to propagate but prevents duplicate commands
+            await bot.tree.sync()
+            logger.info(f"Global sync completed for {len(bot.guilds)} servers (may take up to 1 hour to propagate)")
                 
     except Exception as e:
         logger.error(f"Failed to sync app commands: {e}")
@@ -301,14 +327,10 @@ async def on_ready():
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
-    """Automatically sync commands when the bot joins a new server."""
+    """Log when the bot joins a new server."""
     logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
-    try:
-        bot.tree.copy_global_to(guild=guild)
-        await bot.tree.sync(guild=guild)
-        logger.info(f"Auto-synced commands to {guild.name}")
-    except Exception as e:
-        logger.error(f"Failed to auto-sync commands to {guild.name}: {e}")
+    # Commands will be available via global sync (may take up to 1 hour)
+    # If you need instant commands, use /sync command manually in the new server
 
 
 @bot.event
