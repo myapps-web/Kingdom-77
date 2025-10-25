@@ -6,8 +6,11 @@ __pycache__/
 .env
 
 # Bot data files (contain user-specific data)
-ratings.json
-allowed_roles.json
+data/ratings.json
+data/allowed_roles.json
 
 # Temporary files
 *.tmp
+
+# Backup files
+backup/

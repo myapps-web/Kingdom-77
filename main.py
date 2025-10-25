@@ -41,13 +41,19 @@ GUILD_ID = os.getenv("GUILD_ID")
 
 # File paths for data persistence
 if os.path.dirname(__file__):
-    CHANNELS_FILE = os.path.join(os.path.dirname(__file__), 'channels.json')
-    RATINGS_FILE = os.path.join(os.path.dirname(__file__), 'ratings.json')
-    ROLES_FILE = os.path.join(os.path.dirname(__file__), 'allowed_roles.json')
+    BASE_DIR = os.path.dirname(__file__)
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
+    RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
+    ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
 else:
-    CHANNELS_FILE = 'channels.json'
-    RATINGS_FILE = 'ratings.json'
-    ROLES_FILE = 'allowed_roles.json'
+    DATA_DIR = 'data'
+    CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
+    RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
+    ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
+
+# Create data directory if it doesn't exist
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # Supported languages
 SUPPORTED = {
