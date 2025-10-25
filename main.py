@@ -692,6 +692,36 @@ async def configured_channel_autocomplete(
     ]
 
 
+async def mentionable_role_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Autocomplete for mentionable roles only - shows only roles with mentionable enabled."""
+    if not interaction.guild:
+        return []
+    
+    # Get all mentionable roles (excluding @everyone)
+    mentionable_roles = [
+        role for role in interaction.guild.roles 
+        if role.mentionable and role.name != "@everyone"
+    ]
+    
+    # Filter by current input
+    if current:
+        mentionable_roles = [
+            role for role in mentionable_roles 
+            if current.lower() in role.name.lower()
+        ]
+    
+    # Sort by position (highest first) and limit to 25
+    mentionable_roles.sort(key=lambda r: r.position, reverse=True)
+    
+    return [
+        app_commands.Choice(name=f"@{role.name}", value=str(role.id))
+        for role in mentionable_roles[:25]
+    ]
+
+
 # ============================================================================
 # SLASH COMMANDS - GENERAL
 # ============================================================================
@@ -1125,12 +1155,13 @@ async def ratings(interaction: discord.Interaction):
 # SLASH COMMANDS - ROLE MANAGEMENT (ADMIN ONLY)
 # ============================================================================
 
-@bot.tree.command(name='addrole', description='Add a role that can manage language settings (Admin only)')
+@bot.tree.command(name='addrole', description='Add a mentionable role that can manage language settings (Admin only)')
 @app_commands.describe(
-    role='The role to grant language management permissions'
+    role='Select a mentionable role to grant language management permissions'
 )
-async def addrole(interaction: discord.Interaction, role: discord.Role):
-    """Add a role to the allowed roles list for language management."""
+@app_commands.autocomplete(role=mentionable_role_autocomplete)
+async def addrole(interaction: discord.Interaction, role: str):
+    """Add a role to the allowed roles list for language management. Only shows mentionable roles."""
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -1141,8 +1172,38 @@ async def addrole(interaction: discord.Interaction, role: discord.Role):
         return
     
     try:
+        # Convert role ID string to Role object
+        try:
+            role_obj = interaction.guild.get_role(int(role))
+            if not role_obj:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Role not found.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+        except ValueError:
+            emb = make_embed(
+                title='Error',
+                description='❌ Invalid role selection.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        # Check if role is mentionable
+        if not role_obj.mentionable:
+            emb = make_embed(
+                title='Role Not Mentionable',
+                description=f'⚠️ {role_obj.mention} is not mentionable.\n\n💡 **Tip:** Enable "Allow anyone to @mention this role" in role settings.',
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
         guild_id = str(interaction.guild.id)
-        role_id = str(role.id)
+        role_id = str(role_obj.id)
         
         if guild_id not in allowed_roles:
             allowed_roles[guild_id] = []
@@ -1150,7 +1211,7 @@ async def addrole(interaction: discord.Interaction, role: discord.Role):
         if role_id in allowed_roles[guild_id]:
             emb = make_embed(
                 title='Role Already Added',
-                description=f'⚠️ {role.mention} is already in the allowed roles list.',
+                description=f'⚠️ {role_obj.mention} is already in the allowed roles list.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1161,11 +1222,11 @@ async def addrole(interaction: discord.Interaction, role: discord.Role):
         
         emb = make_embed(
             title='Role Added ✅',
-            description=f'Successfully added {role.mention} to allowed roles.\n\nMembers with this role can now:\n• Set channel languages (`/setlang`)\n• Remove language settings (`/removelang`)\n• View channel languages (`/getlang`)',
+            description=f'Successfully added {role_obj.mention} to allowed roles.\n\nMembers with this role can now:\n• Set channel languages (`/setlang`)\n• Remove language settings (`/removelang`)\n• View channel languages (`/getlang`)',
             color=discord.Color.green()
         )
         await interaction.response.send_message(embed=emb, ephemeral=True)
-        logger.info(f"Role {role.name} ({role_id}) added to allowed roles in guild {interaction.guild.name}")
+        logger.info(f"Role {role_obj.name} ({role_id}) added to allowed roles in guild {interaction.guild.name}")
         
     except Exception as e:
         logger.error(f"Error in addrole command: {e}")
