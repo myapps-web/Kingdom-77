@@ -1,3 +1,19 @@
+"""
+Kingdom-77 Discord Translation Bot
+===================================
+A multi-language Discord bot with translation, rating system, and role-based permissions.
+
+Features:
+- Automatic message translation based on channel language settings
+- User rating system for bot feedback
+- Role-based permission management for language settings
+- Support for 7 languages: Arabic, English, Turkish, Japanese, French, Korean, Italian
+"""
+
+# ============================================================================
+# IMPORTS
+# ============================================================================
+
 import os
 import json
 import logging
@@ -13,13 +29,17 @@ from discord import app_commands
 from discord.ext import commands
 
 
-# Load environment (for local testing; in Replit TOKEN will come from env)
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# Load environment variables
 load_dotenv()
 
 TOKEN = os.getenv("TOKEN")
 GUILD_ID = os.getenv("GUILD_ID")
 
-# Use absolute path or current working directory for JSON files
+# File paths for data persistence
 if os.path.dirname(__file__):
     CHANNELS_FILE = os.path.join(os.path.dirname(__file__), 'channels.json')
     RATINGS_FILE = os.path.join(os.path.dirname(__file__), 'ratings.json')
@@ -29,6 +49,7 @@ else:
     RATINGS_FILE = 'ratings.json'
     ROLES_FILE = 'allowed_roles.json'
 
+# Supported languages
 SUPPORTED = {
     'ar': 'Arabic',
     'en': 'English',
@@ -39,8 +60,17 @@ SUPPORTED = {
     'it': 'Italian'
 }
 
+# Logging configuration
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# DATA LOADING FUNCTIONS
+# ============================================================================
 
 def load_channels() -> Dict[str, str]:
+    """Load channel language configurations from file."""
     try:
         with open(CHANNELS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -84,26 +114,23 @@ def load_allowed_roles() -> Dict[str, list]:
         return {}
 
 
-async def save_channels(data: Dict[str, str]):
-    """Asynchronously save channel language configuration to disk.
+# ============================================================================
+# DATA SAVING FUNCTIONS (ASYNC)
+# ============================================================================
 
-    Writing to disk can block the event loop; offload to a thread pool so
-    command handlers and UI callbacks remain responsive.
-    """
+async def save_channels(data: Dict[str, str]):
+    """Asynchronously save channel language configuration to disk."""
     loop = asyncio.get_running_loop()
 
     def _write(d):
-        # Use a temporary file to avoid truncation issues on crash
         tmp = CHANNELS_FILE + '.tmp'
         try:
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
-            # Atomic replace
             os.replace(tmp, CHANNELS_FILE)
             logger.info(f"Saved {len(d)} channel configurations to {CHANNELS_FILE}")
         except Exception as e:
             logger.error(f"Error saving to {CHANNELS_FILE}: {e}")
-            # Fallback to direct write
             try:
                 with open(CHANNELS_FILE, 'w', encoding='utf-8') as f:
                     json.dump(d, f, ensure_ascii=False, indent=2)
@@ -160,20 +187,25 @@ async def save_allowed_roles(data: Dict[str, list]):
     await loop.run_in_executor(None, _write, data)
 
 
-# Logging
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
-logger = logging.getLogger(__name__)
-
+# ============================================================================
+# BOT INITIALIZATION
+# ============================================================================
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 translator = Translator()
+
+# Global state
 channel_langs = load_channels()
 bot_ratings = {}
 allowed_roles = {}
 
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
 
 def _choose_latency_color(ms: float) -> discord.Color:
     """Return a color based on latency in milliseconds."""
@@ -189,7 +221,6 @@ def make_embed(title: str = None, description: str = None, *, color: discord.Col
     if color is None:
         color = discord.Color.blurple()
     emb = discord.Embed(title=title, description=description, color=color)
-    # try to set bot avatar as author icon when available
     try:
         if bot.user:
             avatar = getattr(bot.user, 'display_avatar', None)
@@ -220,127 +251,21 @@ def has_permission(member: discord.Member, guild_id: str) -> bool:
     if guild_id in allowed_roles and allowed_roles[guild_id]:
         member_role_ids = {str(role.id) for role in member.roles}
         allowed_role_ids = set(allowed_roles[guild_id])
-        # If member has any of the allowed roles, grant permission
         if member_role_ids & allowed_role_ids:
             return True
-        # If no allowed roles configured, fallback to manage_channels permission
         return False
     
     # Default: require manage_channels permission
     return member.guild_permissions.manage_channels
 
 
-# Slash command for ping
-@bot.tree.command(name='ping', description='Check if the bot is responsive')
-async def ping(interaction: discord.Interaction):
-    # Show websocket latency and color-code by severity. This response is public in the channel.
-    ws_ms = round(bot.latency * 1000)
-    color = _choose_latency_color(ws_ms)
-    emoji = "🟢" if ws_ms < 100 else ("🟡" if ws_ms < 250 else "🔴")
-    emb = make_embed(title=f"Pong! {emoji} 🏓", description=f"WebSocket latency: **{ws_ms} ms**", color=color)
-    emb.set_footer(text="Latency may vary. Measures websocket heartbeat latency.")
-    await interaction.response.send_message(embed=emb, ephemeral=False)
-
-@bot.tree.command(name='help', description='Show all available commands')
-async def help(interaction: discord.Interaction):
-    # Check if user is admin to show admin commands
-    is_admin = interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id
-    
-    commands_list = [
-        '**Language Management:**',
-        '`/setlang [channel]` - Set default language for a channel',
-        '`/getlang [channel]` - Get language setting for a channel',
-        '`/removelang [channel]` - Remove language setting for a channel',
-        '`/listchannels` - List all channels with their language settings',
-        '`/listlangs` - List all supported languages',
-        '',
-        '**Bot Information:**',
-        '`/rate` - Rate your experience with the bot',
-        '`/ratings` - View bot rating statistics',
-        '`/ping` - Check if the bot is responsive',
-        '`/help` - Show this help message'
-    ]
-    
-    # Add admin commands if user is admin
-    if is_admin:
-        admin_commands = [
-            '',
-            '**Admin Commands:**',
-            '`/addrole <role>` - Add a role that can manage language settings',
-            '`/removerole <role>` - Remove a role from language management',
-            '`/listroles` - List all roles with language management permissions',
-            '`/debug` - Show bot debug information'
-        ]
-        commands_list.extend(admin_commands)
-    
-    desc = '\n'.join(commands_list)
-    
-    if is_admin:
-        desc += '\n\n**Permission System:**\nBy default, Server Owner and Administrators can manage languages. Use `/addrole` to grant permissions to specific roles.'
-    
-    emb = make_embed(title='Bot Commands', description=desc)
-    emb.set_footer(text="Use autocomplete to easily select channels!")
-    await interaction.response.send_message(embed=emb, ephemeral=True)
-
-
-@bot.tree.command(name='debug', description='Show bot debug information (Admin only)')
-async def debug_info(interaction: discord.Interaction):
-    """Show debug information. Requires administrator permission."""
-    if not interaction.user.guild_permissions.administrator:
-        emb = make_embed(
-            title='Permission Denied',
-            description='⚠️ You need Administrator permission to use this command.',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        return
-    
-    try:
-        # Get channel configurations
-        total_configs = len(channel_langs)
-        guild_channels = [str(c.id) for c in interaction.guild.channels]
-        guild_configs = {ch_id: lang for ch_id, lang in channel_langs.items() if ch_id in guild_channels}
-        
-        info = [
-            f"**Total channel configurations:** {total_configs}",
-            f"**Configurations in this server:** {len(guild_configs)}",
-            f"**Channels file path:** `{CHANNELS_FILE}`",
-            f"**Bot is in {len(bot.guilds)} server(s)**",
-            ""
-        ]
-        
-        if guild_configs:
-            info.append("**Configured channels in this server:**")
-            for ch_id, lang in list(guild_configs.items())[:10]:  # Show first 10
-                try:
-                    channel = interaction.guild.get_channel(int(ch_id))
-                    if channel:
-                        info.append(f"• {channel.mention}: {SUPPORTED.get(lang, lang)}")
-                    else:
-                        info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)} (channel not found)")
-                except:
-                    info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)}")
-            
-            if len(guild_configs) > 10:
-                info.append(f"... and {len(guild_configs) - 10} more")
-        else:
-            info.append("No channels configured in this server.")
-        
-        desc = '\n'.join(info)
-        emb = make_embed(title='Debug Information', description=desc, color=discord.Color.blue())
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-    except Exception as e:
-        logger.error(f"Error in debug command: {e}")
-        emb = make_embed(
-            title='Error',
-            description=f'❌ An error occurred: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-
+# ============================================================================
+# BOT EVENTS
+# ============================================================================
 
 @bot.event
 async def on_ready():
+    """Called when the bot is ready and connected to Discord."""
     logger.info(f"Logged in as {bot.user}")
     logger.info(f"Bot is in {len(bot.guilds)} server(s)")
     
@@ -351,7 +276,7 @@ async def on_ready():
     bot_ratings = await loop.run_in_executor(None, load_ratings)
     allowed_roles = await loop.run_in_executor(None, load_allowed_roles)
     
-    # Log which application (slash) commands are currently registered in the tree
+    # Log application commands
     try:
         cmds = [c.name for c in bot.tree.walk_commands()]
         if cmds:
@@ -361,7 +286,7 @@ async def on_ready():
     except Exception as e:
         logger.debug(f"Could not list app commands: {e}")
     
-    # Clear any guild-specific commands from all guilds to prevent duplicates
+    # Clear guild-specific commands
     try:
         for guild in bot.guilds:
             try:
@@ -373,24 +298,20 @@ async def on_ready():
     except Exception as e:
         logger.error(f"Error clearing guild commands: {e}")
     
-    # Sync slash commands globally (one time only)
+    # Sync slash commands
     try:
         if GUILD_ID:
-            # If GUILD_ID is specified, sync to that specific guild only (for fast testing)
             guild = discord.Object(id=int(GUILD_ID))
             bot.tree.copy_global_to(guild=guild)
             await bot.tree.sync(guild=guild)
             logger.info(f"Synced app commands to guild {GUILD_ID}")
         else:
-            # Do global sync (commands will be available in all servers)
-            # This takes up to 1 hour to propagate but prevents duplicate commands
             await bot.tree.sync()
             logger.info(f"Global sync completed for {len(bot.guilds)} servers (may take up to 1 hour to propagate)")
-                
     except Exception as e:
-        logger.error(f"Failed to sync app commands: {e}")
-
-    # Log prefix commands and loaded cogs for debugging
+        logger.error(f"Failed to sync commands: {e}")
+    
+    # Log other info
     try:
         cmds = [c.name for c in bot.commands]
         logger.info(f"Registered prefix commands: {cmds}")
@@ -408,20 +329,20 @@ async def on_ready():
 async def on_guild_join(guild: discord.Guild):
     """Log when the bot joins a new server."""
     logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
-    # Commands will be available via global sync (may take up to 1 hour)
-    # If you need instant commands, use /sync command manually in the new server
 
 
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
     """Log when the bot is removed from a server and clean up data."""
     logger.info(f"Removed from guild: {guild.name} (ID: {guild.id})")
-    # Clean up channel settings for this guild
+    
     try:
-        # Get all channel IDs from this guild before it's removed
-        guild_channel_ids = {str(c.id) for c in guild.channels}
-        channels_to_remove = [ch_id for ch_id in list(channel_langs.keys()) 
-                             if ch_id in guild_channel_ids]
+        guild_id = str(guild.id)
+        channels_to_remove = []
+        
+        for ch_id in list(channel_langs.keys()):
+            if ch_id.startswith(guild_id):
+                channels_to_remove.append(ch_id)
         
         for ch_id in channels_to_remove:
             del channel_langs[ch_id]
@@ -433,7 +354,78 @@ async def on_guild_remove(guild: discord.Guild):
         logger.error(f"Error cleaning up guild data for {guild.name}: {e}")
 
 
+@bot.event
+async def on_message(message: discord.Message):
+    """Handle message translation based on channel language settings."""
+    # Ignore bots and webhooks
+    if message.author.bot or message.webhook_id:
+        return
+
+    channel_id = str(message.channel.id)
+    target = channel_langs.get(channel_id)
+    if not target:
+        return
+
+    content = message.content.strip()
+    if not content:
+        return
+
+    try:
+        detected = detect(content)
+    except LangDetectException:
+        logger.debug("Could not detect language")
+        return
+
+    # Check if target language is supported
+    if target not in SUPPORTED:
+        logger.warning(f"Target language '{target}' not in SUPPORTED list")
+        return
+
+    # Only translate if detected language is different from target
+    if detected == target:
+        logger.debug(f"Message already in target language ({target}), skipping")
+        return
+
+    # Translate
+    try:
+        result = translator.translate(content, dest=target)
+        translated = result.text if result and hasattr(result, 'text') else None
+    except Exception as e:
+        logger.error(f"Translation API error: {e}")
+        return
+
+    if not translated:
+        logger.debug("Translation returned empty")
+        return
+
+    # Only send translation if it's different from original
+    if translated and translated.strip() != content.strip():
+        emb = make_embed(title='Translation', description=translated, color=discord.Color.blue())
+        try:
+            detected_name = SUPPORTED.get(detected, detected)
+            target_name = SUPPORTED.get(target, target)
+            emb.set_footer(text=f"{detected_name} → {target_name}")
+        except Exception:
+            pass
+        await message.reply(embed=emb, mention_author=False)
+        logger.info(f"Detected '{detected}' message in '{target}' channel → Translated to {SUPPORTED.get(target, target)}")
+    else:
+        logger.debug(f"Translation result is same as original, skipping")
+        
+    # Allow other commands to be processed
+    try:
+        await bot.process_commands(message)
+    except Exception:
+        pass
+
+
+# ============================================================================
+# UI COMPONENTS
+# ============================================================================
+
 class LanguageSelect(discord.ui.Select):
+    """Dropdown menu for selecting a language."""
+    
     def __init__(self, supported_langs):
         options = [
             discord.SelectOption(
@@ -482,6 +474,8 @@ class LanguageSelect(discord.ui.Select):
 
 
 class LanguageView(discord.ui.View):
+    """View containing the language selection dropdown."""
+    
     def __init__(self, channel):
         super().__init__()
         self.channel = channel
@@ -490,8 +484,9 @@ class LanguageView(discord.ui.View):
 
 class RatingView(discord.ui.View):
     """UI for rating the bot with star buttons."""
+    
     def __init__(self):
-        super().__init__(timeout=180)  # 3 minutes timeout
+        super().__init__(timeout=180)
     
     @discord.ui.button(label="⭐", style=discord.ButtonStyle.secondary, custom_id="rate_1")
     async def rate_1(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -516,21 +511,16 @@ class RatingView(discord.ui.View):
     async def _handle_rating(self, interaction: discord.Interaction, stars: int):
         """Handle rating submission."""
         user_id = str(interaction.user.id)
-        
-        # Check if user already rated
         was_update = user_id in bot_ratings
         
-        # Store rating with timestamp
         bot_ratings[user_id] = {
             'rating': stars,
             'timestamp': datetime.utcnow().isoformat(),
             'username': str(interaction.user)
         }
         
-        # Save to file
         await save_ratings(bot_ratings)
         
-        # Create response
         star_text = "⭐" * stars
         action = "updated" if was_update else "submitted"
         
@@ -545,183 +535,11 @@ class RatingView(discord.ui.View):
         logger.info(f"User {interaction.user} rated the bot {stars}/5 ({action})")
 
 
-async def channel_autocomplete(
-    interaction: discord.Interaction,
-    current: str,
-) -> list[app_commands.Choice[str]]:
-    """Autocomplete for channel selection - shows all text channels."""
-    if not interaction.guild:
-        return []
-    
-    # Get all text channels in the guild
-    channels = [
-        ch for ch in interaction.guild.channels 
-        if isinstance(ch, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel))
-    ]
-    
-    # Filter by current input
-    if current:
-        channels = [ch for ch in channels if current.lower() in ch.name.lower()]
-    
-    # Return up to 25 choices (Discord limit)
-    return [
-        app_commands.Choice(name=f"#{ch.name}", value=str(ch.id))
-        for ch in channels[:25]
-    ]
-
-
-async def configured_channel_autocomplete(
-    interaction: discord.Interaction,
-    current: str,
-) -> list[app_commands.Choice[str]]:
-    """Autocomplete for configured channels only - shows only channels with language settings."""
-    if not interaction.guild:
-        return []
-    
-    # Get guild channel IDs
-    guild_channel_ids = {str(ch.id) for ch in interaction.guild.channels}
-    
-    # Filter to only configured channels in this guild
-    configured = []
-    for ch_id, lang_code in channel_langs.items():
-        if ch_id in guild_channel_ids:
-            ch = interaction.guild.get_channel(int(ch_id))
-            if ch and isinstance(ch, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel)):
-                lang_name = SUPPORTED.get(lang_code, lang_code)
-                configured.append((ch, lang_name))
-    
-    # Filter by current input
-    if current:
-        configured = [(ch, lang) for ch, lang in configured if current.lower() in ch.name.lower()]
-    
-    # Return up to 25 choices
-    return [
-        app_commands.Choice(name=f"#{ch.name} ({lang})", value=str(ch.id))
-        for ch, lang in configured[:25]
-    ]
-
-
-@bot.tree.command(name='setlang', description='Set default language for a channel')
-@app_commands.describe(
-    channel='Select channel to set language for (optional, defaults to current channel)'
-)
-@app_commands.autocomplete(channel=channel_autocomplete)
-async def setlang(interaction: discord.Interaction, channel: str = None):
-    guild_id = str(interaction.guild.id)
-    if not has_permission(interaction.user, guild_id):
-        emb = make_embed(
-            title='Permission Denied',
-            description='⚠️ You need proper permissions to use this command.\n\nRequired: Server Owner, Administrator, or an allowed role.',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        return
-
-    try:
-        # If channel is provided as string (ID from autocomplete), get the channel object
-        if channel:
-            try:
-                target_channel = interaction.guild.get_channel(int(channel))
-                if not target_channel:
-                    emb = make_embed(
-                        title='Error',
-                        description='❌ Channel not found.',
-                        color=discord.Color.red()
-                    )
-                    await interaction.response.send_message(embed=emb, ephemeral=True)
-                    return
-            except ValueError:
-                emb = make_embed(
-                    title='Error',
-                    description='❌ Invalid channel.',
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=emb, ephemeral=True)
-                return
-        else:
-            # Use current channel if none specified
-            target_channel = interaction.channel
-        
-        # Show language selection for the target channel
-        view = LanguageView(target_channel)
-        await interaction.response.send_message(
-            f"Select language for {target_channel.mention}:",
-            view=view,
-            ephemeral=True
-        )
-    except Exception as e:
-        logger.error(f"Error in setlang command: {e}")
-        emb = make_embed(
-            title='Error',
-            description=f'❌ An error occurred: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-
-@bot.tree.command(name='getlang', description='Get language setting for a channel')
-@app_commands.describe(
-    channel='Select channel to check language for (optional, defaults to current channel)'
-)
-@app_commands.autocomplete(channel=configured_channel_autocomplete)
-async def getlang(interaction: discord.Interaction, channel: str = None):
-    try:
-        if channel:
-            try:
-                target_channel = interaction.guild.get_channel(int(channel))
-                if not target_channel:
-                    emb = make_embed(
-                        title='Error',
-                        description='❌ Channel not found.',
-                        color=discord.Color.red()
-                    )
-                    await interaction.response.send_message(embed=emb, ephemeral=True)
-                    return
-            except ValueError:
-                emb = make_embed(
-                    title='Error',
-                    description='❌ Invalid channel.',
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=emb, ephemeral=True)
-                return
-        else:
-            target_channel = interaction.channel
-        
-        channel_id = str(target_channel.id)
-        current_lang = channel_langs.get(channel_id)
-        
-        if current_lang:
-            emb = make_embed(
-                title='Channel Language',
-                description=f'Language for {target_channel.mention}: **{SUPPORTED[current_lang]}** ({current_lang})'
-            )
-            await interaction.response.send_message(embed=emb, ephemeral=True)
-        else:
-            emb = make_embed(
-                title='Channel Language',
-                description=f'No language set for {target_channel.mention}',
-                color=discord.Color.dark_grey()
-            )
-            await interaction.response.send_message(embed=emb, ephemeral=True)
-    except Exception as e:
-        logger.error(f"Error in getlang command: {e}")
-        emb = make_embed(
-            title='Error',
-            description=f'❌ An error occurred: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-
-@bot.tree.command(name='listlangs', description='List all supported languages')
-async def listlangs(interaction: discord.Interaction):
-    langs_list = [f'{code}: {name}' for code, name in SUPPORTED.items()]
-    emb = make_embed(title='Supported languages', description='\n'.join(langs_list))
-    await interaction.response.send_message(embed=emb, ephemeral=True)
-
 class ChannelListView(discord.ui.View):
     """Paginated view for channel list with 5 channels per page."""
+    
     def __init__(self, configured_channels: list, unconfigured_channels: list, guild_name: str):
-        super().__init__(timeout=180)  # 3 minutes timeout
+        super().__init__(timeout=180)
         self.configured = configured_channels
         self.unconfigured = unconfigured_channels
         self.guild_name = guild_name
@@ -740,7 +558,6 @@ class ChannelListView(discord.ui.View):
         configured_pages = (len(self.configured) + self.items_per_page - 1) // self.items_per_page if self.configured else 1
         
         if self.current_page < configured_pages:
-            # Show configured channels page
             start_idx = self.current_page * self.items_per_page
             end_idx = min(start_idx + self.items_per_page, len(self.configured))
             
@@ -750,7 +567,6 @@ class ChannelListView(discord.ui.View):
             else:
                 desc = '**Channels with Language Settings:**\n\nNo channels have language settings configured.'
         else:
-            # Show unconfigured channels page
             page_in_unconfigured = self.current_page - configured_pages
             start_idx = page_in_unconfigured * self.items_per_page
             end_idx = min(start_idx + self.items_per_page, len(self.unconfigured))
@@ -794,8 +610,303 @@ class ChannelListView(discord.ui.View):
             item.disabled = True
 
 
+# ============================================================================
+# AUTOCOMPLETE FUNCTIONS
+# ============================================================================
+
+async def channel_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Autocomplete for channel selection - shows all text channels."""
+    if not interaction.guild:
+        return []
+    
+    channels = [
+        ch for ch in interaction.guild.channels 
+        if isinstance(ch, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel))
+    ]
+    
+    if current:
+        channels = [ch for ch in channels if current.lower() in ch.name.lower()]
+    
+    return [
+        app_commands.Choice(name=f"#{ch.name}", value=str(ch.id))
+        for ch in channels[:25]
+    ]
+
+
+async def configured_channel_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Autocomplete for configured channels only - shows only channels with language settings."""
+    if not interaction.guild:
+        return []
+    
+    guild_channel_ids = {str(ch.id) for ch in interaction.guild.channels}
+    
+    configured = []
+    for ch_id, lang_code in channel_langs.items():
+        if ch_id in guild_channel_ids:
+            ch = interaction.guild.get_channel(int(ch_id))
+            if ch and isinstance(ch, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel)):
+                lang_name = SUPPORTED.get(lang_code, lang_code)
+                configured.append((ch, lang_name))
+    
+    if current:
+        configured = [(ch, lang) for ch, lang in configured if current.lower() in ch.name.lower()]
+    
+    return [
+        app_commands.Choice(name=f"#{ch.name} ({lang})", value=str(ch.id))
+        for ch, lang in configured[:25]
+    ]
+
+
+# ============================================================================
+# SLASH COMMANDS - GENERAL
+# ============================================================================
+
+@bot.tree.command(name='ping', description='Check if the bot is responsive')
+async def ping(interaction: discord.Interaction):
+    """Check bot responsiveness and latency."""
+    ws_ms = round(bot.latency * 1000)
+    color = _choose_latency_color(ws_ms)
+    emoji = "🟢" if ws_ms < 100 else ("🟡" if ws_ms < 250 else "🔴")
+    emb = make_embed(title=f"Pong! {emoji} 🏓", description=f"WebSocket latency: **{ws_ms} ms**", color=color)
+    emb.set_footer(text="Latency may vary. Measures websocket heartbeat latency.")
+    await interaction.response.send_message(embed=emb, ephemeral=False)
+
+
+@bot.tree.command(name='help', description='Show all available commands')
+async def help(interaction: discord.Interaction):
+    """Display help information with available commands."""
+    is_admin = interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id
+    
+    commands_list = [
+        '**Language Management:**',
+        '`/setlang [channel]` - Set default language for a channel',
+        '`/getlang [channel]` - Get language setting for a channel',
+        '`/removelang [channel]` - Remove language setting for a channel',
+        '`/listchannels` - List all channels with their language settings',
+        '`/listlangs` - List all supported languages',
+        '',
+        '**Bot Information:**',
+        '`/rate` - Rate your experience with the bot',
+        '`/ratings` - View bot rating statistics',
+        '`/ping` - Check if the bot is responsive',
+        '`/help` - Show this help message'
+    ]
+    
+    if is_admin:
+        admin_commands = [
+            '',
+            '**Admin Commands:**',
+            '`/addrole <role>` - Add a role that can manage language settings',
+            '`/removerole <role>` - Remove a role from language management',
+            '`/listroles` - List all roles with language management permissions',
+            '`/debug` - Show bot debug information'
+        ]
+        commands_list.extend(admin_commands)
+    
+    desc = '\n'.join(commands_list)
+    
+    if is_admin:
+        desc += '\n\n**Permission System:**\nBy default, Server Owner and Administrators can manage languages. Use `/addrole` to grant permissions to specific roles.'
+    
+    emb = make_embed(title='Bot Commands', description=desc)
+    emb.set_footer(text="Use autocomplete to easily select channels!")
+    await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+@bot.tree.command(name='debug', description='Show bot debug information (Admin only)')
+async def debug_info(interaction: discord.Interaction):
+    """Show debug information. Requires administrator permission."""
+    if not interaction.user.guild_permissions.administrator:
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need Administrator permission to use this command.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    try:
+        total_configs = len(channel_langs)
+        guild_channels = [str(c.id) for c in interaction.guild.channels]
+        guild_configs = {ch_id: lang for ch_id, lang in channel_langs.items() if ch_id in guild_channels}
+        
+        info = [
+            f"**Total channel configurations:** {total_configs}",
+            f"**Configurations in this server:** {len(guild_configs)}",
+            f"**Channels file path:** `{CHANNELS_FILE}`",
+            f"**Bot is in {len(bot.guilds)} server(s)**",
+            ""
+        ]
+        
+        if guild_configs:
+            info.append("**Configured channels in this server:**")
+            for ch_id, lang in list(guild_configs.items())[:10]:
+                try:
+                    ch = interaction.guild.get_channel(int(ch_id))
+                    if ch:
+                        info.append(f"• {ch.mention}: {SUPPORTED.get(lang, lang)}")
+                    else:
+                        info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)} (channel not found)")
+                except Exception:
+                    info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)}")
+            
+            if len(guild_configs) > 10:
+                info.append(f"... and {len(guild_configs) - 10} more")
+        else:
+            info.append("No channels configured in this server.")
+        
+        emb = make_embed(title='Debug Information', description='\n'.join(info))
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Error in debug command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+# ============================================================================
+# SLASH COMMANDS - LANGUAGE MANAGEMENT
+# ============================================================================
+
+@bot.tree.command(name='setlang', description='Set default language for a channel')
+@app_commands.describe(
+    channel='Select channel to set language for (optional, defaults to current channel)'
+)
+@app_commands.autocomplete(channel=channel_autocomplete)
+async def setlang(interaction: discord.Interaction, channel: str = None):
+    """Set the default language for a channel."""
+    guild_id = str(interaction.guild.id)
+    if not has_permission(interaction.user, guild_id):
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need proper permissions to use this command.\n\nRequired: Server Owner, Administrator, or an allowed role.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+
+    try:
+        if channel:
+            try:
+                target_channel = interaction.guild.get_channel(int(channel))
+                if not target_channel:
+                    emb = make_embed(
+                        title='Error',
+                        description='❌ Channel not found.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+            except ValueError:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Invalid channel.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+        else:
+            target_channel = interaction.channel
+        
+        view = LanguageView(target_channel)
+        emb = make_embed(
+            title='Set Language',
+            description=f'Please select a language for {target_channel.mention}:',
+            color=discord.Color.blurple()
+        )
+        await interaction.response.send_message(embed=emb, view=view, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in setlang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+@bot.tree.command(name='getlang', description='Get language setting for a channel')
+@app_commands.describe(
+    channel='Select channel to check language for (optional, defaults to current channel)'
+)
+@app_commands.autocomplete(channel=configured_channel_autocomplete)
+async def getlang(interaction: discord.Interaction, channel: str = None):
+    """Get the current language setting for a channel."""
+    try:
+        if channel:
+            try:
+                target_channel = interaction.guild.get_channel(int(channel))
+                if not target_channel:
+                    emb = make_embed(
+                        title='Error',
+                        description='❌ Channel not found.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+            except ValueError:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Invalid channel.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+        else:
+            target_channel = interaction.channel
+        
+        channel_id = str(target_channel.id)
+        lang_code = channel_langs.get(channel_id)
+        
+        if lang_code:
+            lang_name = SUPPORTED.get(lang_code, 'Unknown')
+            emb = make_embed(
+                title='Channel Language',
+                description=f'{target_channel.mention} is set to **{lang_name}** ({lang_code})',
+                color=discord.Color.green()
+            )
+        else:
+            emb = make_embed(
+                title='Channel Language',
+                description=f'{target_channel.mention} has no language configured.',
+                color=discord.Color.dark_grey()
+            )
+        
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in getlang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+@bot.tree.command(name='listlangs', description='List all supported languages')
+async def listlangs(interaction: discord.Interaction):
+    """List all supported languages."""
+    lang_list = [f'• **{name}** (`{code}`)' for code, name in SUPPORTED.items()]
+    desc = '**Supported Languages:**\n\n' + '\n'.join(lang_list)
+    desc += '\n\nUse `/setlang` to configure a channel.'
+    
+    emb = make_embed(title='Supported Languages', description=desc)
+    await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
 @bot.tree.command(name='listchannels', description='List all channels with their language settings')
 async def listchannels(interaction: discord.Interaction):
+    """List all channels with pagination."""
     if not interaction.guild:
         emb = make_embed(
             title='Error',
@@ -806,10 +917,8 @@ async def listchannels(interaction: discord.Interaction):
         return
 
     try:
-        # Get all text and voice channels in the guild
         channels = interaction.guild.channels
         
-        # Filter channels that have language settings
         configured_channels = []
         unconfigured_channels = []
         
@@ -823,7 +932,6 @@ async def listchannels(interaction: discord.Interaction):
                 else:
                     unconfigured_channels.append(f'{channel.mention}: No language set')
         
-        # Create paginated view
         view = ChannelListView(configured_channels, unconfigured_channels, interaction.guild.name)
         emb = view.get_embed()
         
@@ -837,12 +945,14 @@ async def listchannels(interaction: discord.Interaction):
         )
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
+
 @bot.tree.command(name='removelang', description='Remove language setting for a channel')
 @app_commands.describe(
     channel='Select channel to remove language setting from (shows only configured channels)'
 )
 @app_commands.autocomplete(channel=configured_channel_autocomplete)
 async def removelang(interaction: discord.Interaction, channel: str = None):
+    """Remove language configuration from a channel."""
     guild_id = str(interaction.guild.id)
     if not has_permission(interaction.user, guild_id):
         emb = make_embed(
@@ -905,6 +1015,10 @@ async def removelang(interaction: discord.Interaction, channel: str = None):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
+# ============================================================================
+# SLASH COMMANDS - RATING SYSTEM
+# ============================================================================
+
 @bot.tree.command(name='rate', description='Rate your experience with the bot')
 async def rate(interaction: discord.Interaction):
     """Allow users to rate the bot with a star rating system."""
@@ -946,7 +1060,7 @@ async def ratings(interaction: discord.Interaction):
     for stars in range(5, 0, -1):
         count = star_counts[stars]
         percentage = (count / total_ratings) * 100
-        bar_length = int(percentage / 5)  # Each █ represents 5%
+        bar_length = int(percentage / 5)
         bar = "█" * bar_length + "░" * (20 - bar_length)
         distribution.append(f"{'⭐' * stars}: {bar} {count} ({percentage:.1f}%)")
     
@@ -961,13 +1075,16 @@ async def ratings(interaction: discord.Interaction):
     await interaction.response.send_message(embed=emb, ephemeral=False)
 
 
+# ============================================================================
+# SLASH COMMANDS - ROLE MANAGEMENT (ADMIN ONLY)
+# ============================================================================
+
 @bot.tree.command(name='addrole', description='Add a role that can manage language settings (Admin only)')
 @app_commands.describe(
     role='The role to grant language management permissions'
 )
 async def addrole(interaction: discord.Interaction, role: discord.Role):
     """Add a role to the allowed roles list for language management."""
-    # Only server owner or administrator can manage allowed roles
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -981,11 +1098,9 @@ async def addrole(interaction: discord.Interaction, role: discord.Role):
         guild_id = str(interaction.guild.id)
         role_id = str(role.id)
         
-        # Initialize guild's allowed roles if not exists
         if guild_id not in allowed_roles:
             allowed_roles[guild_id] = []
         
-        # Check if role already added
         if role_id in allowed_roles[guild_id]:
             emb = make_embed(
                 title='Role Already Added',
@@ -995,7 +1110,6 @@ async def addrole(interaction: discord.Interaction, role: discord.Role):
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
-        # Add role
         allowed_roles[guild_id].append(role_id)
         await save_allowed_roles(allowed_roles)
         
@@ -1023,7 +1137,6 @@ async def addrole(interaction: discord.Interaction, role: discord.Role):
 )
 async def removerole(interaction: discord.Interaction, role: discord.Role):
     """Remove a role from the allowed roles list."""
-    # Only server owner or administrator can manage allowed roles
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -1037,7 +1150,6 @@ async def removerole(interaction: discord.Interaction, role: discord.Role):
         guild_id = str(interaction.guild.id)
         role_id = str(role.id)
         
-        # Check if guild has any allowed roles
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='No Allowed Roles',
@@ -1047,7 +1159,6 @@ async def removerole(interaction: discord.Interaction, role: discord.Role):
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
-        # Check if role is in the list
         if role_id not in allowed_roles[guild_id]:
             emb = make_embed(
                 title='Role Not Found',
@@ -1057,7 +1168,6 @@ async def removerole(interaction: discord.Interaction, role: discord.Role):
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
-        # Remove role
         allowed_roles[guild_id].remove(role_id)
         await save_allowed_roles(allowed_roles)
         
@@ -1085,7 +1195,6 @@ async def listroles(interaction: discord.Interaction):
     try:
         guild_id = str(interaction.guild.id)
         
-        # Check if guild has any allowed roles
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='Allowed Roles 📋',
@@ -1095,14 +1204,12 @@ async def listroles(interaction: discord.Interaction):
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
-        # Get role objects
         role_mentions = []
         for role_id in allowed_roles[guild_id]:
             role = interaction.guild.get_role(int(role_id))
             if role:
                 role_mentions.append(f'• {role.mention} ({role.name})')
             else:
-                # Role was deleted
                 role_mentions.append(f'• ~~Deleted Role~~ (ID: {role_id})')
         
         description = '**Roles with language management permissions:**\n\n' + '\n'.join(role_mentions)
@@ -1127,88 +1234,12 @@ async def listroles(interaction: discord.Interaction):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.event
-async def on_message(message: discord.Message):
-    # Ignore bots and webhooks
-    if message.author.bot or message.webhook_id:
-        return
-
-    channel_id = str(message.channel.id)
-    target = channel_langs.get(channel_id)
-    if not target:
-        # nothing configured for this channel
-        return
-
-    content = message.content.strip()
-    if not content:
-        return
-    # If this message is a prefix command (starts with '!'), let the command processor handle it.
-    if content.startswith('!'):
-        try:
-            await bot.process_commands(message)
-        except Exception:
-            pass
-        return
-
-    # Slash commands are interactions and won't appear as message content; ignore literal messages
-    # that start with '/' to avoid accidental translations of written slashes.
-    if content.startswith('/'):
-        return
-
-    try:
-        detected = detect(content)
-        logger.debug(f"Detected language: {detected} for message in channel {channel_id} (target: {target})")
-    except LangDetectException as e:
-        logger.debug(f"Could not detect language for message: {e}")
-        return
-
-    if detected == target:
-        logger.debug(f"Message already in target language ({target}), skipping translation")
-        return
-
-    # Check if target language is supported (we can translate FROM any language TO supported languages)
-    if target not in SUPPORTED:
-        logger.debug(f"Target language {target} is not supported")
-        return
-
-    # translate
-    try:
-        # Pass detected language as source to translator to avoid wrong auto-detection
-        logger.info(f"Translating from {detected} to {target} in channel {channel_id}")
-        res = translator.translate(content, src=detected, dest=target)
-        translated = getattr(res, 'text', str(res))
-        
-        # Only send translation if it's different from original
-        if translated and translated.strip() != content.strip():
-            # send reply as embed
-            emb = make_embed(title='Translation', description=translated, color=discord.Color.blue())
-            try:
-                # Show detected language name if it's in SUPPORTED, otherwise just the code
-                detected_name = SUPPORTED.get(detected, detected)
-                target_name = SUPPORTED.get(target, target)
-                emb.set_footer(text=f"{detected_name} → {target_name}")
-            except Exception:
-                pass
-            await message.reply(embed=emb, mention_author=False)
-            logger.info(f"Detected '{detected}' message in '{target}' channel → Translated to {SUPPORTED.get(target, target)}")
-        else:
-            logger.debug(f"Translation result is same as original, skipping")
-    except Exception as e:
-        logger.error(f"Translation error: {e}")
-    # Allow other commands (if any) to be processed
-    try:
-        await bot.process_commands(message)
-    except Exception:
-        pass
-
+# ============================================================================
+# BOT STARTUP
+# ============================================================================
 
 if __name__ == '__main__':
     if not TOKEN:
         logger.error('TOKEN is not set. Put it in Replit Secrets as TOKEN or .env locally.')
         exit(1)
     bot.run(TOKEN)
-
-# Run instructions:
-# 1. On Replit, add Secrets: TOKEN (your bot token), optionally GUILD_ID for fast slash command sync.
-# 2. Press Run. The bot will start and sync slash commands. Use /setlang <code> in a channel to set its language.
-# 3. Send messages in languages different from the channel language — the bot will translate and reply.
