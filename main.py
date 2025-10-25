@@ -1160,7 +1160,6 @@ async def help(interaction: discord.Interaction):
     commands_list = [
         '**Language Management:**',
         '`/setlang [channel]` - Set default language for a channel',
-        '`/getlang [channel]` - Get language setting for a channel',
         '`/removelang [channel]` - Remove language setting for a channel',
         '`/listchannels` - List all channels with their language settings',
         '`/listlangs` - List all supported languages',
@@ -1312,81 +1311,6 @@ async def setlang(interaction: discord.Interaction, channel: str = None):
         await interaction.response.send_message(embed=emb, view=view, ephemeral=True)
     except Exception as e:
         logger.error(f"Error in setlang command: {e}")
-        emb = make_embed(
-            title='Error',
-            description=f'❌ An error occurred: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-
-
-@bot.tree.command(name='getlang', description='Get language setting for a configured channel')
-@app_commands.describe(
-    channel='Select a channel from the list (only channels with language settings are shown)'
-)
-@app_commands.autocomplete(channel=configured_channel_autocomplete)
-async def getlang(interaction: discord.Interaction, channel: str):
-    """Get the current language setting for a channel. Only shows channels that have a language configured."""
-    try:
-        # Check if a channel was selected
-        if not channel:
-            emb = make_embed(
-                title='Channel Required',
-                description='⚠️ Please select a channel from the dropdown list.\n\n💡 **Tip:** Only channels with configured languages appear in the list.',
-                color=discord.Color.orange()
-            )
-            await interaction.response.send_message(embed=emb, ephemeral=True)
-            return
-            
-        try:
-            target_channel = interaction.guild.get_channel(int(channel))
-            if not target_channel:
-                emb = make_embed(
-                    title='Error',
-                    description='❌ Channel not found.',
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=emb, ephemeral=True)
-                return
-        except ValueError:
-            emb = make_embed(
-                title='Error',
-                description='❌ Invalid channel selection.',
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=emb, ephemeral=True)
-            return
-        
-        channel_id = str(target_channel.id)
-        lang_code = channel_langs.get(channel_id)
-        
-        if lang_code:
-            lang_name = SUPPORTED.get(lang_code, 'Unknown')
-            flag_emoji = {
-                'ar': '🇸🇦',
-                'en': '🇬🇧',
-                'tr': '🇹🇷',
-                'ja': '🇯🇵',
-                'fr': '🇫🇷',
-                'ko': '🇰🇷',
-                'it': '🇮🇹'
-            }.get(lang_code, '🌐')
-            
-            emb = make_embed(
-                title=f'{flag_emoji} Channel Language',
-                description=f'{target_channel.mention} is set to **{lang_name}** (`{lang_code}`)\n\n✅ Messages in other languages will be automatically translated to {lang_name}.',
-                color=discord.Color.green()
-            )
-        else:
-            emb = make_embed(
-                title='No Language Set',
-                description=f'{target_channel.mention} has no language configured.\n\n💡 Use `/setlang` to set a language for this channel.',
-                color=discord.Color.dark_grey()
-            )
-        
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-    except Exception as e:
-        logger.error(f"Error in getlang command: {e}")
         emb = make_embed(
             title='Error',
             description=f'❌ An error occurred: {str(e)}',
@@ -1654,7 +1578,7 @@ async def addrole(interaction: discord.Interaction, role: str):
         perm_details.extend([
             "• Set channel languages (`/setlang`)",
             "• Remove language settings (`/removelang`)",
-            "• View channel languages (`/getlang`)"
+            "• View channel languages (`/listchannels`)"
         ])
         
         emb = make_embed(
@@ -1742,7 +1666,7 @@ async def removerole(interaction: discord.Interaction, role: str):
             perm_details.append("• Administrator privileges")
         perm_details.append("• Set channel languages (`/setlang`)")
         perm_details.append("• Remove language settings (`/removelang`)")
-        perm_details.append("• View channel languages (`/getlang`)")
+        perm_details.append("• View channel languages (`/listchannels`)")
         
         # Remove role
         allowed_roles[guild_id].remove(role_id)
@@ -1800,7 +1724,7 @@ async def listroles(interaction: discord.Interaction):
         
         description = '**Roles with language management permissions:**\n\n' + '\n'.join(role_list)
         description += '\n\n**Built-in Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control'
-        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/setlang`)\n✅ Remove language settings (`/removelang`)\n✅ View language settings (`/getlang`)'
+        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/setlang`)\n✅ Remove language settings (`/removelang`)\n✅ View language settings (`/listchannels`)'
         
         emb = make_embed(
             title='Allowed Roles 📋',
