@@ -241,19 +241,23 @@ async def on_guild_join(guild: discord.Guild):
 
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
-    """Log when the bot is removed from a server."""
+    """Log when the bot is removed from a server and clean up data."""
     logger.info(f"Removed from guild: {guild.name} (ID: {guild.id})")
     # Clean up channel settings for this guild
     try:
-        channels_to_remove = [ch_id for ch_id in channel_langs.keys() 
-                             if any(str(c.id) == ch_id for c in guild.channels)]
+        # Get all channel IDs from this guild before it's removed
+        guild_channel_ids = {str(c.id) for c in guild.channels}
+        channels_to_remove = [ch_id for ch_id in list(channel_langs.keys()) 
+                             if ch_id in guild_channel_ids]
+        
         for ch_id in channels_to_remove:
             del channel_langs[ch_id]
+        
         if channels_to_remove:
             await save_channels(channel_langs)
             logger.info(f"Cleaned up {len(channels_to_remove)} channel settings from {guild.name}")
     except Exception as e:
-        logger.error(f"Error cleaning up guild data: {e}")
+        logger.error(f"Error cleaning up guild data for {guild.name}: {e}")
 
 
 class LanguageSelect(discord.ui.Select):
@@ -274,15 +278,33 @@ class LanguageSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_channels:
-            await interaction.response.send_message('⚠️ You need Manage Channels permission to use this command.', ephemeral=True)
+            emb = make_embed(
+                title='Permission Denied',
+                description='⚠️ You need Manage Channels permission to use this command.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
-        code = self.values[0]
-        channel_id = str(self.view.channel.id)
-        channel_langs[channel_id] = code
-        await save_channels(channel_langs)
-        emb = make_embed(title='Language set', description=f'✅ Channel language set to **{SUPPORTED[code]}** ({code}) for {self.view.channel.mention}', color=discord.Color.green())
-        await interaction.response.send_message(embed=emb, ephemeral=True)
+        try:
+            code = self.values[0]
+            channel_id = str(self.view.channel.id)
+            channel_langs[channel_id] = code
+            await save_channels(channel_langs)
+            emb = make_embed(
+                title='Language set',
+                description=f'✅ Channel language set to **{SUPPORTED[code]}** ({code}) for {self.view.channel.mention}',
+                color=discord.Color.green()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error in LanguageSelect callback: {e}")
+            emb = make_embed(
+                title='Error',
+                description=f'❌ Failed to set language: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
 
 class ChannelSelect(discord.ui.ChannelSelect):
     def __init__(self):
@@ -324,25 +346,39 @@ class LanguageView(discord.ui.View):
 )
 async def setlang(interaction: discord.Interaction, channel: discord.TextChannel = None):
     if not interaction.user.guild_permissions.manage_channels:
-        await interaction.response.send_message('⚠️ You need Manage Channels permission to use this command.', ephemeral=True)
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need Manage Channels permission to use this command.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
         return
 
-    if channel:
-        # If channel is specified directly, show language selection
-        view = LanguageView(channel)
-        await interaction.response.send_message(
-            f"Select language for {channel.mention}:",
-            view=view,
-            ephemeral=True
+    try:
+        if channel:
+            # If channel is specified directly, show language selection
+            view = LanguageView(channel)
+            await interaction.response.send_message(
+                f"Select language for {channel.mention}:",
+                view=view,
+                ephemeral=True
+            )
+        else:
+            # If no channel specified, show channel selection first
+            view = ChannelView()
+            await interaction.response.send_message(
+                "Select a channel:",
+                view=view,
+                ephemeral=True
+            )
+    except Exception as e:
+        logger.error(f"Error in setlang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
         )
-    else:
-        # If no channel specified, show channel selection first
-        view = ChannelView()
-        await interaction.response.send_message(
-            "Select a channel:",
-            view=view,
-            ephemeral=True
-        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
 
 @bot.tree.command(name='getlang', description='Get language setting for a channel')
 @app_commands.describe(
@@ -369,40 +405,63 @@ async def listlangs(interaction: discord.Interaction):
 @bot.tree.command(name='listchannels', description='List all channels with their language settings')
 async def listchannels(interaction: discord.Interaction):
     if not interaction.guild:
-        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
+        emb = make_embed(
+            title='Error',
+            description='This command can only be used in a server.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
         return
 
-    # Get all text and voice channels in the guild
-    channels = interaction.guild.channels
-    
-    # Filter channels that have language settings
-    configured_channels = []
-    unconfigured_channels = []
-    
-    for channel in channels:
-        if isinstance(channel, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel)):
-            channel_id = str(channel.id)
-            if channel_id in channel_langs:
-                lang_code = channel_langs[channel_id]
-                lang_name = SUPPORTED[lang_code]
-                configured_channels.append(f'{channel.mention}: {lang_name} ({lang_code})')
+    try:
+        # Get all text and voice channels in the guild
+        channels = interaction.guild.channels
+        
+        # Filter channels that have language settings
+        configured_channels = []
+        unconfigured_channels = []
+        
+        for channel in channels:
+            if isinstance(channel, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel)):
+                channel_id = str(channel.id)
+                if channel_id in channel_langs:
+                    lang_code = channel_langs[channel_id]
+                    lang_name = SUPPORTED.get(lang_code, 'Unknown')
+                    configured_channels.append(f'{channel.mention}: {lang_name} ({lang_code})')
+                else:
+                    unconfigured_channels.append(f'{channel.mention}: No language set')
+        
+        # Create the message
+        message = ['**Channels with Language Settings:**']
+        if configured_channels:
+            message.extend(configured_channels)
+        else:
+            message.append('No channels have language settings configured.')
+        
+        message.append('\n**Channels without Language Settings:**')
+        if unconfigured_channels:
+            # Limit to first 20 to avoid message too long
+            if len(unconfigured_channels) > 20:
+                message.extend(unconfigured_channels[:20])
+                message.append(f'... and {len(unconfigured_channels) - 20} more')
             else:
-                unconfigured_channels.append(f'{channel.mention}: No language set')
-    
-    # Create the message
-    message = ['**Channels with Language Settings:**']
-    if configured_channels:
-        message.extend(configured_channels)
-    else:
-        message.append('No channels have language settings configured.')
-    
-    message.append('\n**Channels without Language Settings:**')
-    if unconfigured_channels:
-        message.extend(unconfigured_channels)
-    
-    desc = '\n'.join(message)
-    emb = make_embed(title='Channel language overview', description=desc)
-    await interaction.response.send_message(embed=emb, ephemeral=True)
+                message.extend(unconfigured_channels)
+        
+        desc = '\n'.join(message)
+        # Discord embed description limit is 4096 characters
+        if len(desc) > 4096:
+            desc = desc[:4093] + '...'
+        
+        emb = make_embed(title='Channel language overview', description=desc)
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in listchannels command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
 
 @bot.tree.command(name='removelang', description='Remove language setting for a channel')
 @app_commands.describe(
@@ -410,20 +469,42 @@ async def listchannels(interaction: discord.Interaction):
 )
 async def removelang(interaction: discord.Interaction, channel: discord.TextChannel = None):
     if not interaction.user.guild_permissions.manage_channels:
-        await interaction.response.send_message('⚠️ You need Manage Channels permission to use this command.', ephemeral=True)
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need Manage Channels permission to use this command.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
         return
 
-    target_channel = channel or interaction.channel
-    channel_id = str(target_channel.id)
-    
-    if channel_id in channel_langs:
-        old_lang = channel_langs[channel_id]
-        del channel_langs[channel_id]
-        await save_channels(channel_langs)
-        emb = make_embed(title='Removed', description=f'✅ Removed language setting for {target_channel.mention} (was {SUPPORTED[old_lang]}).', color=discord.Color.green())
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-    else:
-        emb = make_embed(title='Remove language', description=f'No language was set for {target_channel.mention}.', color=discord.Color.dark_grey())
+    try:
+        target_channel = channel or interaction.channel
+        channel_id = str(target_channel.id)
+        
+        if channel_id in channel_langs:
+            old_lang = channel_langs[channel_id]
+            del channel_langs[channel_id]
+            await save_channels(channel_langs)
+            emb = make_embed(
+                title='Removed',
+                description=f'✅ Removed language setting for {target_channel.mention} (was {SUPPORTED[old_lang]}).',
+                color=discord.Color.green()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+        else:
+            emb = make_embed(
+                title='Remove language',
+                description=f'No language was set for {target_channel.mention}.',
+                color=discord.Color.dark_grey()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in removelang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
