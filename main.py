@@ -335,33 +335,6 @@ class LanguageSelect(discord.ui.Select):
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
 
-class ChannelSelect(discord.ui.ChannelSelect):
-    def __init__(self):
-        super().__init__(
-            placeholder="Select a channel...",
-            channel_types=[
-                discord.ChannelType.text,
-                discord.ChannelType.voice,
-                discord.ChannelType.forum,
-                discord.ChannelType.news
-            ]
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        self.view.channel = self.values[0]
-        # Update the language select view
-        lang_view = LanguageView(self.view.channel)
-        await interaction.response.send_message(
-            f"Select language for {self.view.channel.mention}:",
-            view=lang_view,
-            ephemeral=True
-        )
-
-class ChannelView(discord.ui.View):
-    def __init__(self):
-        super().__init__()
-        self.channel = None
-        self.add_item(ChannelSelect())
 
 class LanguageView(discord.ui.View):
     def __init__(self, channel):
@@ -369,11 +342,38 @@ class LanguageView(discord.ui.View):
         self.channel = channel
         self.add_item(LanguageSelect(SUPPORTED))
 
+
+async def channel_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Autocomplete for channel selection - shows all text channels."""
+    if not interaction.guild:
+        return []
+    
+    # Get all text channels in the guild
+    channels = [
+        ch for ch in interaction.guild.channels 
+        if isinstance(ch, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel))
+    ]
+    
+    # Filter by current input
+    if current:
+        channels = [ch for ch in channels if current.lower() in ch.name.lower()]
+    
+    # Return up to 25 choices (Discord limit)
+    return [
+        app_commands.Choice(name=f"#{ch.name}", value=str(ch.id))
+        for ch in channels[:25]
+    ]
+
+
 @bot.tree.command(name='setlang', description='Set default language for a channel')
 @app_commands.describe(
     channel='Select channel to set language for (optional, defaults to current channel)'
 )
-async def setlang(interaction: discord.Interaction, channel: discord.TextChannel = None):
+@app_commands.autocomplete(channel=channel_autocomplete)
+async def setlang(interaction: discord.Interaction, channel: str = None):
     if not interaction.user.guild_permissions.manage_channels:
         emb = make_embed(
             title='Permission Denied',
@@ -384,22 +384,37 @@ async def setlang(interaction: discord.Interaction, channel: discord.TextChannel
         return
 
     try:
+        # If channel is provided as string (ID from autocomplete), get the channel object
         if channel:
-            # If channel is specified directly, show language selection
-            view = LanguageView(channel)
-            await interaction.response.send_message(
-                f"Select language for {channel.mention}:",
-                view=view,
-                ephemeral=True
-            )
+            try:
+                target_channel = interaction.guild.get_channel(int(channel))
+                if not target_channel:
+                    emb = make_embed(
+                        title='Error',
+                        description='❌ Channel not found.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+            except ValueError:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Invalid channel.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
         else:
-            # If no channel specified, show channel selection first
-            view = ChannelView()
-            await interaction.response.send_message(
-                "Select a channel:",
-                view=view,
-                ephemeral=True
-            )
+            # Use current channel if none specified
+            target_channel = interaction.channel
+        
+        # Show language selection for the target channel
+        view = LanguageView(target_channel)
+        await interaction.response.send_message(
+            f"Select language for {target_channel.mention}:",
+            view=view,
+            ephemeral=True
+        )
     except Exception as e:
         logger.error(f"Error in setlang command: {e}")
         emb = make_embed(
