@@ -120,6 +120,7 @@ async def help(interaction: discord.Interaction):
         '`/listlangs` - List all supported languages',
         '`/removelang [channel]` - Remove language setting for a channel',
         '`/listchannels` - List all channels with their language settings',
+        '`/sync` - Manually sync bot commands (Admin only)',
         '`/ping` - Check if the bot is responsive',
         '`/help` - Show this help message'
     ]
@@ -129,9 +130,47 @@ async def help(interaction: discord.Interaction):
     await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
+@bot.tree.command(name='sync', description='Manually sync bot commands to this server (Admin only)')
+async def sync_commands(interaction: discord.Interaction):
+    """Manually sync commands to the current guild. Requires administrator permission."""
+    if not interaction.user.guild_permissions.administrator:
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need Administrator permission to use this command.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        guild = interaction.guild
+        bot.tree.copy_global_to(guild=guild)
+        await bot.tree.sync(guild=guild)
+        
+        emb = make_embed(
+            title='Sync Complete',
+            description=f'✅ Successfully synced commands to **{guild.name}**\n\nAll slash commands should now be available.',
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=emb, ephemeral=True)
+        logger.info(f"Manual sync completed for {guild.name} by {interaction.user}")
+    except Exception as e:
+        emb = make_embed(
+            title='Sync Failed',
+            description=f'❌ Failed to sync commands: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=emb, ephemeral=True)
+        logger.error(f"Manual sync failed for {interaction.guild.name}: {e}")
+
+
 @bot.event
 async def on_ready():
     logger.info(f"Logged in as {bot.user}")
+    logger.info(f"Bot is in {len(bot.guilds)} server(s)")
+    
     # Log which application (slash) commands are currently registered in the tree
     try:
         cmds = [c.name for c in bot.tree.walk_commands()]
@@ -139,35 +178,82 @@ async def on_ready():
             logger.info(f"Application commands present: {cmds}")
         else:
             logger.info("No application commands found in bot.tree.")
-            if not GUILD_ID:
-                logger.info("Note: No GUILD_ID set — global registration can take up to an hour. Set GUILD_ID in Replit Secrets for fast guild sync.")
     except Exception as e:
         logger.debug(f"Could not list app commands: {e}")
-    # Sync slash commands
+    
+    # Sync slash commands to all guilds
     try:
         if GUILD_ID:
+            # If GUILD_ID is specified, sync to that specific guild only (for testing)
             guild = discord.Object(id=int(GUILD_ID))
             bot.tree.copy_global_to(guild=guild)
             await bot.tree.sync(guild=guild)
             logger.info(f"Synced app commands to guild {GUILD_ID}")
         else:
-            await bot.tree.sync()
-            logger.info("Synced app commands globally")
+            # Sync to all guilds the bot is in (faster than global sync)
+            synced_count = 0
+            for guild in bot.guilds:
+                try:
+                    bot.tree.copy_global_to(guild=guild)
+                    await bot.tree.sync(guild=guild)
+                    synced_count += 1
+                    logger.info(f"Synced commands to {guild.name} (ID: {guild.id})")
+                except Exception as e:
+                    logger.error(f"Failed to sync to {guild.name}: {e}")
+            
+            logger.info(f"Successfully synced commands to {synced_count}/{len(bot.guilds)} servers")
+            
+            # Also do a global sync as backup (takes up to 1 hour to propagate)
+            try:
+                await bot.tree.sync()
+                logger.info("Global sync completed (may take up to 1 hour to propagate)")
+            except Exception as e:
+                logger.warning(f"Global sync failed: {e}")
+                
     except Exception as e:
         logger.error(f"Failed to sync app commands: {e}")
 
-        # Log prefix commands and loaded cogs for debugging
-        try:
-            cmds = [c.name for c in bot.commands]
-            logger.info(f"Registered prefix commands: {cmds}")
-        except Exception as e:
-            logger.debug(f"Could not list prefix commands: {e}")
+    # Log prefix commands and loaded cogs for debugging
+    try:
+        cmds = [c.name for c in bot.commands]
+        logger.info(f"Registered prefix commands: {cmds}")
+    except Exception as e:
+        logger.debug(f"Could not list prefix commands: {e}")
 
-        try:
-            loaded = list(bot.cogs.keys())
-            logger.info(f"Loaded cogs: {loaded}")
-        except Exception as e:
-            logger.debug(f"Could not list loaded cogs: {e}")
+    try:
+        loaded = list(bot.cogs.keys())
+        logger.info(f"Loaded cogs: {loaded}")
+    except Exception as e:
+        logger.debug(f"Could not list loaded cogs: {e}")
+
+
+@bot.event
+async def on_guild_join(guild: discord.Guild):
+    """Automatically sync commands when the bot joins a new server."""
+    logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
+    try:
+        bot.tree.copy_global_to(guild=guild)
+        await bot.tree.sync(guild=guild)
+        logger.info(f"Auto-synced commands to {guild.name}")
+    except Exception as e:
+        logger.error(f"Failed to auto-sync commands to {guild.name}: {e}")
+
+
+@bot.event
+async def on_guild_remove(guild: discord.Guild):
+    """Log when the bot is removed from a server."""
+    logger.info(f"Removed from guild: {guild.name} (ID: {guild.id})")
+    # Clean up channel settings for this guild
+    try:
+        channels_to_remove = [ch_id for ch_id in channel_langs.keys() 
+                             if any(str(c.id) == ch_id for c in guild.channels)]
+        for ch_id in channels_to_remove:
+            del channel_langs[ch_id]
+        if channels_to_remove:
+            await save_channels(channel_langs)
+            logger.info(f"Cleaned up {len(channels_to_remove)} channel settings from {guild.name}")
+    except Exception as e:
+        logger.error(f"Error cleaning up guild data: {e}")
 
 
 class LanguageSelect(discord.ui.Select):
