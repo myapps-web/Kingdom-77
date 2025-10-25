@@ -46,11 +46,13 @@ if os.path.dirname(__file__):
     CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
     RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
     ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
+    ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
 else:
     DATA_DIR = 'data'
     CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
     RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
     ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
+    ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
 
 # Create data directory if it doesn't exist
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -117,6 +119,23 @@ def load_allowed_roles() -> Dict[str, list]:
         return {}
     except Exception as e:
         logger.error(f"Error loading allowed roles from {ROLES_FILE}: {e}")
+        return {}
+
+
+def load_role_languages() -> Dict[str, Dict[str, str]]:
+    """Load role language mappings from file.
+    Format: {'guild_id': {'role_id': 'language_code'}}
+    """
+    try:
+        with open(ROLE_LANGUAGES_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            logger.info(f"Loaded role languages for {len(data)} guilds from {ROLE_LANGUAGES_FILE}")
+            return data
+    except FileNotFoundError:
+        logger.info(f"No role_languages.json found at {ROLE_LANGUAGES_FILE}, starting fresh")
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading role languages from {ROLE_LANGUAGES_FILE}: {e}")
         return {}
 
 
@@ -193,6 +212,29 @@ async def save_allowed_roles(data: Dict[str, list]):
     await loop.run_in_executor(None, _write, data)
 
 
+async def save_role_languages(data: Dict[str, Dict[str, str]]):
+    """Asynchronously save role language mappings to disk."""
+    loop = asyncio.get_running_loop()
+
+    def _write(d):
+        tmp = ROLE_LANGUAGES_FILE + '.tmp'
+        try:
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(d, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, ROLE_LANGUAGES_FILE)
+            logger.info(f"Saved role languages for {len(d)} guilds to {ROLE_LANGUAGES_FILE}")
+        except Exception as e:
+            logger.error(f"Error saving to {ROLE_LANGUAGES_FILE}: {e}")
+            try:
+                with open(ROLE_LANGUAGES_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(d, f, ensure_ascii=False, indent=2)
+                logger.info(f"Fallback: Saved role languages directly to {ROLE_LANGUAGES_FILE}")
+            except Exception as e2:
+                logger.error(f"Fallback save also failed: {e2}")
+
+    await loop.run_in_executor(None, _write, data)
+
+
 # ============================================================================
 # BOT INITIALIZATION
 # ============================================================================
@@ -206,6 +248,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 channel_langs = load_channels()
 bot_ratings = {}
 allowed_roles = {}
+role_languages = load_role_languages()
 
 # Translation cache for faster responses
 translation_cache = {}  # {(text_hash, source_lang, target_lang): translated_text}
@@ -564,6 +607,103 @@ class RatingView(discord.ui.View):
         logger.info(f"User {interaction.user} rated the bot {stars}/5 ({action})")
 
 
+class TranslationLanguageView(discord.ui.View):
+    """View for selecting translation language when user has multiple role languages."""
+    
+    def __init__(self, user_languages: list, message_content: str, source_lang: str):
+        super().__init__(timeout=180)
+        self.user_languages = user_languages  # [(lang_code, lang_name), ...]
+        self.message_content = message_content
+        self.source_lang = source_lang
+        
+        # Add buttons for each language (max 5 per row)
+        for lang_code, lang_name in user_languages[:5]:  # Discord limit: 5 buttons per row
+            flag_emoji = {
+                'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+            }.get(lang_code, '🌐')
+            
+            button = discord.ui.Button(
+                label=f"{flag_emoji} {lang_name}",
+                style=discord.ButtonStyle.primary,
+                custom_id=f"translate_{lang_code}"
+            )
+            button.callback = self.create_callback(lang_code, lang_name)
+            self.add_item(button)
+    
+    def create_callback(self, target_lang: str, lang_name: str):
+        """Create callback function for translation button."""
+        async def callback(interaction: discord.Interaction):
+            try:
+                # Check if same language
+                if self.source_lang == target_lang:
+                    emb = make_embed(
+                        title='Same Language',
+                        description=f'⚠️ The message is already in {lang_name}.',
+                        color=discord.Color.orange()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+                
+                # Translate using cache or API
+                cache_key = (hash(self.message_content), self.source_lang, target_lang)
+                
+                if cache_key in translation_cache:
+                    translated = translation_cache[cache_key]
+                else:
+                    translated = GoogleTranslator(source=self.source_lang, target=target_lang).translate(self.message_content)
+                    if translated:
+                        translation_cache[cache_key] = translated
+                        
+                        # Clean cache if needed
+                        if len(translation_cache) > CACHE_MAX_SIZE:
+                            remove_count = CACHE_MAX_SIZE // 5
+                            for _ in range(remove_count):
+                                translation_cache.pop(next(iter(translation_cache)))
+                
+                if not translated:
+                    emb = make_embed(
+                        title='Translation Failed',
+                        description='❌ Could not translate the message. Please try again.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+                
+                # Create translation embed
+                source_name = SUPPORTED.get(self.source_lang, self.source_lang)
+                flag_emoji = {
+                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+                }.get(target_lang, '🌐')
+                
+                emb = make_embed(
+                    title=f'{flag_emoji} Translation to {lang_name}',
+                    description=f'━━━━━━━━━━━━━━━━━━━━━\n{translated}\n━━━━━━━━━━━━━━━━━━━━━',
+                    color=discord.Color.blue()
+                )
+                emb.add_field(
+                    name='📝 Original Message',
+                    value=self.message_content[:1024] if len(self.message_content) <= 1024 else self.message_content[:1021] + '...',
+                    inline=False
+                )
+                emb.set_footer(text=f'{source_name} → {lang_name}')
+                
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                logger.info(f"User {interaction.user} translated message from {self.source_lang} to {target_lang}")
+                
+            except Exception as e:
+                logger.error(f"Error in translation button callback: {e}")
+                emb = make_embed(
+                    title='Error',
+                    description=f'❌ An error occurred during translation: {str(e)}',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+        
+        return callback
+
+
 class ChannelListView(discord.ui.View):
     """Paginated view for channel list with 5 channels per page."""
     
@@ -770,6 +910,155 @@ async def allowed_role_autocomplete(
         )
     
     return role_choices
+
+
+# ============================================================================
+# CONTEXT MENU COMMANDS
+# ============================================================================
+
+@bot.tree.context_menu(name='Translate Message')
+async def translate_message_context(interaction: discord.Interaction, message: discord.Message):
+    """Context menu command to translate a message based on user's role languages."""
+    try:
+        # Get message content
+        content = message.content.strip()
+        
+        if not content:
+            emb = make_embed(
+                title='No Text Content',
+                description='⚠️ This message has no text content to translate.',
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        # Get user's role languages
+        guild_id = str(interaction.guild.id)
+        user_role_ids = [str(role.id) for role in interaction.user.roles]
+        
+        user_languages = []
+        if guild_id in role_languages:
+            for role_id in user_role_ids:
+                if role_id in role_languages[guild_id]:
+                    lang_code = role_languages[guild_id][role_id]
+                    lang_name = SUPPORTED.get(lang_code, lang_code)
+                    user_languages.append((lang_code, lang_name))
+        
+        # If user has no role languages, show error
+        if not user_languages:
+            emb = make_embed(
+                title='No Language Roles',
+                description='⚠️ You don\'t have any language roles assigned.\n\n💡 **Ask an admin to:**\n1. Use `/setrolelang` to assign languages to roles\n2. Give you a role with a language assigned',
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        # Detect message language
+        try:
+            detected = detect(content)
+        except Exception as e:
+            logger.debug(f"Language detection failed: {e}")
+            detected = 'auto'
+        
+        # If only one language, translate directly
+        if len(user_languages) == 1:
+            target_lang, lang_name = user_languages[0]
+            
+            # Check if same language
+            if detected == target_lang:
+                emb = make_embed(
+                    title='Same Language',
+                    description=f'⚠️ This message is already in {lang_name}.',
+                    color=discord.Color.orange()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+            
+            # Translate
+            try:
+                cache_key = (hash(content), detected, target_lang)
+                
+                if cache_key in translation_cache:
+                    translated = translation_cache[cache_key]
+                else:
+                    translated = GoogleTranslator(source=detected, target=target_lang).translate(content)
+                    if translated:
+                        translation_cache[cache_key] = translated
+                        
+                        if len(translation_cache) > CACHE_MAX_SIZE:
+                            remove_count = CACHE_MAX_SIZE // 5
+                            for _ in range(remove_count):
+                                translation_cache.pop(next(iter(translation_cache)))
+                
+                if not translated:
+                    emb = make_embed(
+                        title='Translation Failed',
+                        description='❌ Could not translate the message. Please try again.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+                
+                # Create translation embed
+                source_name = SUPPORTED.get(detected, detected)
+                flag_emoji = {
+                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+                }.get(target_lang, '🌐')
+                
+                emb = make_embed(
+                    title=f'{flag_emoji} Translation to {lang_name}',
+                    description=f'━━━━━━━━━━━━━━━━━━━━━\n{translated}\n━━━━━━━━━━━━━━━━━━━━━',
+                    color=discord.Color.blue()
+                )
+                emb.add_field(
+                    name='📝 Original Message',
+                    value=content[:1024] if len(content) <= 1024 else content[:1021] + '...',
+                    inline=False
+                )
+                emb.set_footer(text=f'{source_name} → {lang_name}')
+                
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                logger.info(f"User {interaction.user} translated message from {detected} to {target_lang}")
+                
+            except Exception as e:
+                logger.error(f"Translation error: {e}")
+                emb = make_embed(
+                    title='Translation Error',
+                    description=f'❌ An error occurred: {str(e)}',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+        
+        else:
+            # Multiple languages - show selection buttons
+            view = TranslationLanguageView(user_languages, content, detected)
+            
+            emb = make_embed(
+                title='🌐 Choose Translation Language',
+                description='You have multiple language roles. Please select your preferred language:',
+                color=discord.Color.blurple()
+            )
+            emb.add_field(
+                name='📝 Original Message',
+                value=content[:1024] if len(content) <= 1024 else content[:1021] + '...',
+                inline=False
+            )
+            
+            await interaction.response.send_message(embed=emb, view=view, ephemeral=True)
+            
+    except Exception as e:
+        logger.error(f"Error in translate_message_context: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        try:
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+        except:
+            await interaction.followup.send(embed=emb, ephemeral=True)
 
 
 # ============================================================================
@@ -1437,6 +1726,193 @@ async def listroles(interaction: discord.Interaction):
         
     except Exception as e:
         logger.error(f"Error in listroles command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+# ============================================================================
+# SLASH COMMANDS - ROLE LANGUAGE MANAGEMENT (ADMIN ONLY)
+# ============================================================================
+
+@bot.tree.command(name='setrolelang', description='Assign a language to a role for translation feature (Admin only)')
+@app_commands.describe(
+    role='Select a role to assign a language',
+    language='Select the language for this role'
+)
+@app_commands.choices(language=[
+    app_commands.Choice(name='🇸🇦 Arabic', value='ar'),
+    app_commands.Choice(name='🇬🇧 English', value='en'),
+    app_commands.Choice(name='🇹🇷 Turkish', value='tr'),
+    app_commands.Choice(name='🇯🇵 Japanese', value='ja'),
+    app_commands.Choice(name='🇫🇷 French', value='fr'),
+    app_commands.Choice(name='🇰🇷 Korean', value='ko'),
+    app_commands.Choice(name='🇮🇹 Italian', value='it')
+])
+async def setrolelang(interaction: discord.Interaction, role: discord.Role, language: str):
+    """Assign a language to a role for context menu translation."""
+    if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ Only Server Owner or Administrators can manage role languages.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    try:
+        guild_id = str(interaction.guild.id)
+        role_id = str(role.id)
+        
+        if guild_id not in role_languages:
+            role_languages[guild_id] = {}
+        
+        # Check if already set
+        was_update = role_id in role_languages[guild_id]
+        old_lang = role_languages[guild_id].get(role_id)
+        
+        role_languages[guild_id][role_id] = language
+        await save_role_languages(role_languages)
+        
+        lang_name = SUPPORTED.get(language, language)
+        flag_emoji = {
+            'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+            'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+        }.get(language, '🌐')
+        
+        if was_update:
+            old_lang_name = SUPPORTED.get(old_lang, old_lang)
+            action_text = f'updated from **{old_lang_name}** to **{flag_emoji} {lang_name}**'
+        else:
+            action_text = f'set to **{flag_emoji} {lang_name}**'
+        
+        emb = make_embed(
+            title='Role Language Set ✅',
+            description=f'Language for {role.mention} has been {action_text}.\n\n**What this means:**\nMembers with this role can now:\n• Right-click any message\n• Select "Translate Message"\n• Get instant translation to {lang_name}',
+            color=discord.Color.green()
+        )
+        emb.set_footer(text='Use /listrolelanguages to see all role languages')
+        
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        logger.info(f"Role {role.name} language set to {language} in guild {interaction.guild.name}")
+        
+    except Exception as e:
+        logger.error(f"Error in setrolelang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+@bot.tree.command(name='removerolelang', description='Remove language assignment from a role (Admin only)')
+@app_commands.describe(
+    role='Select a role to remove language assignment'
+)
+async def removerolelang(interaction: discord.Interaction, role: discord.Role):
+    """Remove language assignment from a role."""
+    if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ Only Server Owner or Administrators can manage role languages.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    try:
+        guild_id = str(interaction.guild.id)
+        role_id = str(role.id)
+        
+        if guild_id not in role_languages or role_id not in role_languages[guild_id]:
+            emb = make_embed(
+                title='Role Not Configured',
+                description=f'⚠️ {role.mention} does not have a language assigned.\n\n💡 Use `/setrolelang` to assign a language to this role.',
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        # Get language before removing
+        old_lang = role_languages[guild_id][role_id]
+        lang_name = SUPPORTED.get(old_lang, old_lang)
+        
+        # Remove
+        del role_languages[guild_id][role_id]
+        
+        # Clean up empty guild entries
+        if not role_languages[guild_id]:
+            del role_languages[guild_id]
+        
+        await save_role_languages(role_languages)
+        
+        emb = make_embed(
+            title='Role Language Removed ✅',
+            description=f'Language assignment removed from {role.mention}.\n\n**Previous Language:** {lang_name}\n\n⚠️ Members with this role will no longer be able to use the translation context menu.',
+            color=discord.Color.green()
+        )
+        
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        logger.info(f"Role {role.name} language removed in guild {interaction.guild.name}")
+        
+    except Exception as e:
+        logger.error(f"Error in removerolelang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+@bot.tree.command(name='listrolelanguages', description='List all roles with language assignments')
+async def listrolelanguages(interaction: discord.Interaction):
+    """List all role language assignments for the current guild."""
+    try:
+        guild_id = str(interaction.guild.id)
+        
+        if guild_id not in role_languages or not role_languages[guild_id]:
+            emb = make_embed(
+                title='Role Languages 🌐',
+                description='No roles have language assignments yet.\n\n**How to set up:**\n1. Use `/setrolelang` to assign languages to roles\n2. Members with those roles can right-click messages\n3. Select "Translate Message" to translate instantly\n\n💡 **Example:** Assign English to @English-Speakers role',
+                color=discord.Color.blurple()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        # Build role list
+        role_list = []
+        for role_id, lang_code in role_languages[guild_id].items():
+            role = interaction.guild.get_role(int(role_id))
+            lang_name = SUPPORTED.get(lang_code, lang_code)
+            flag_emoji = {
+                'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+            }.get(lang_code, '🌐')
+            
+            if role:
+                role_list.append(f'• {role.mention} → **{flag_emoji} {lang_name}**')
+            else:
+                role_list.append(f'• ~~Deleted Role~~ (ID: {role_id}) → **{flag_emoji} {lang_name}**')
+        
+        description = '**Roles with Language Assignments:**\n\n' + '\n'.join(role_list)
+        description += '\n\n**How it works:**\n✅ Right-click any message\n✅ Select "Translate Message"\n✅ Instant translation to your role language'
+        
+        emb = make_embed(
+            title='Role Languages 🌐',
+            description=description,
+            color=discord.Color.blurple()
+        )
+        emb.set_footer(text=f"Total roles: {len(role_languages[guild_id])} • Use /setrolelang or /removerolelang to manage")
+        
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Error in listrolelanguages command: {e}")
         emb = make_embed(
             title='Error',
             description=f'❌ An error occurred: {str(e)}',
