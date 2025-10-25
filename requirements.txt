@@ -2,4 +2,5 @@ discord.py
 googletrans==4.0.0rc1
 langdetect
 python-dotenv
+pytest
 deep-translator
