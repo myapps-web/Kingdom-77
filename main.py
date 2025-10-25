@@ -65,7 +65,8 @@ SUPPORTED = {
     'ja': 'Japanese',
     'fr': 'French',
     'ko': 'Korean',
-    'it': 'Italian'
+    'it': 'Italian',
+    'zh-CN': 'Chinese'
 }
 
 # Extended language names for better detection display
@@ -636,7 +637,7 @@ class TranslationLanguageView(discord.ui.View):
         for lang_code, lang_name in user_languages[:5]:  # Discord limit: 5 buttons per row
             flag_emoji = {
                 'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
             }.get(lang_code, '🌐')
             
             button = discord.ui.Button(
@@ -690,7 +691,7 @@ class TranslationLanguageView(discord.ui.View):
                 source_name = LANGUAGE_NAMES.get(self.source_lang, f'Unknown ({self.source_lang})')
                 flag_emoji = {
                     'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
                 }.get(target_lang, '🌐')
                 
                 emb = make_embed(
@@ -1080,7 +1081,7 @@ async def translate_message_context(interaction: discord.Interaction, message: d
                 source_name = LANGUAGE_NAMES.get(detected, f'Unknown ({detected})')
                 flag_emoji = {
                     'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
                 }.get(target_lang, '🌐')
                 
                 emb = make_embed(
@@ -1761,7 +1762,8 @@ async def listroles(interaction: discord.Interaction):
     app_commands.Choice(name='🇯🇵 Japanese', value='ja'),
     app_commands.Choice(name='🇫🇷 French', value='fr'),
     app_commands.Choice(name='🇰🇷 Korean', value='ko'),
-    app_commands.Choice(name='🇮🇹 Italian', value='it')
+    app_commands.Choice(name='🇮🇹 Italian', value='it'),
+    app_commands.Choice(name='🇨🇳 Chinese', value='zh-CN')
 ])
 async def setrolelang(interaction: discord.Interaction, role: discord.Role, language: str):
     """Assign a language to a role for context menu translation."""
@@ -1791,7 +1793,7 @@ async def setrolelang(interaction: discord.Interaction, role: discord.Role, lang
         lang_name = SUPPORTED.get(language, language)
         flag_emoji = {
             'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-            'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+            'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
         }.get(language, '🌐')
         
         if was_update:
@@ -1902,7 +1904,7 @@ async def listrolelanguages(interaction: discord.Interaction):
             lang_name = SUPPORTED.get(lang_code, lang_code)
             flag_emoji = {
                 'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
+                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
             }.get(lang_code, '🌐')
             
             if role:
