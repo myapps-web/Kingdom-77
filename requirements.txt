@@ -1,6 +1,5 @@
-discord.py
-googletrans==4.0.0rc1
+discord.py==2.6.4
+deep-translator==1.11.4
 langdetect
 python-dotenv
 pytest
-deep-translator

@@ -22,7 +22,7 @@ from datetime import datetime
 
 from dotenv import load_dotenv
 from langdetect import detect, LangDetectException
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 import discord
 import asyncio
 from discord import app_commands
@@ -201,12 +201,15 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
-translator = Translator()
 
 # Global state
 channel_langs = load_channels()
 bot_ratings = {}
 allowed_roles = {}
+
+# Translation cache for faster responses
+translation_cache = {}  # {(text_hash, source_lang, target_lang): translated_text}
+CACHE_MAX_SIZE = 1000  # Maximum cache entries
 
 
 # ============================================================================
@@ -392,13 +395,33 @@ async def on_message(message: discord.Message):
         logger.debug(f"Message already in target language ({target}), skipping")
         return
 
-    # Translate
-    try:
-        result = translator.translate(content, dest=target)
-        translated = result.text if result and hasattr(result, 'text') else None
-    except Exception as e:
-        logger.error(f"Translation API error: {e}")
-        return
+    # Create cache key (using hash to handle long messages)
+    cache_key = (hash(content), detected, target)
+    
+    # Check cache first for faster response
+    if cache_key in translation_cache:
+        translated = translation_cache[cache_key]
+        logger.debug(f"Using cached translation for '{content[:30]}...'")
+    else:
+        # Translate using deep-translator API (faster and more reliable)
+        try:
+            # deep-translator uses async-friendly approach
+            translated = GoogleTranslator(source=detected, target=target).translate(content)
+            
+            # Store in cache
+            if translated:
+                translation_cache[cache_key] = translated
+                
+                # Clean cache if too large (remove 20% oldest entries)
+                if len(translation_cache) > CACHE_MAX_SIZE:
+                    remove_count = CACHE_MAX_SIZE // 5
+                    for _ in range(remove_count):
+                        translation_cache.pop(next(iter(translation_cache)))
+                    logger.debug(f"Cache cleaned: removed {remove_count} entries")
+                    
+        except Exception as e:
+            logger.error(f"Translation API error: {e}")
+            return
 
     if not translated:
         logger.debug("Translation returned empty")
