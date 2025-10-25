@@ -722,6 +722,56 @@ async def mentionable_role_autocomplete(
     ]
 
 
+async def allowed_role_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Autocomplete for allowed roles only - shows only roles that have been added to language management."""
+    if not interaction.guild:
+        return []
+    
+    guild_id = str(interaction.guild.id)
+    
+    # Get allowed role IDs for this guild
+    if guild_id not in allowed_roles or not allowed_roles[guild_id]:
+        return []
+    
+    # Get role objects for allowed roles
+    allowed_role_objs = []
+    for role_id in allowed_roles[guild_id]:
+        role = interaction.guild.get_role(int(role_id))
+        if role:
+            allowed_role_objs.append(role)
+    
+    # Filter by current input
+    if current:
+        allowed_role_objs = [
+            role for role in allowed_role_objs 
+            if current.lower() in role.name.lower()
+        ]
+    
+    # Sort by position (highest first)
+    allowed_role_objs.sort(key=lambda r: r.position, reverse=True)
+    
+    # Get role permissions details
+    role_choices = []
+    for role in allowed_role_objs[:25]:
+        # Determine permissions level
+        if role.permissions.administrator:
+            perm_text = "Admin"
+        else:
+            perm_text = "Language Manager"
+        
+        role_choices.append(
+            app_commands.Choice(
+                name=f"@{role.name} ({perm_text})", 
+                value=str(role.id)
+            )
+        )
+    
+    return role_choices
+
+
 # ============================================================================
 # SLASH COMMANDS - GENERAL
 # ============================================================================
@@ -1220,9 +1270,20 @@ async def addrole(interaction: discord.Interaction, role: str):
         allowed_roles[guild_id].append(role_id)
         await save_allowed_roles(allowed_roles)
         
+        # Get role permissions details
+        perm_details = []
+        if role_obj.permissions.administrator:
+            perm_details.append("• **Administrator** - Full server management")
+        
+        perm_details.extend([
+            "• Set channel languages (`/setlang`)",
+            "• Remove language settings (`/removelang`)",
+            "• View channel languages (`/getlang`)"
+        ])
+        
         emb = make_embed(
             title='Role Added ✅',
-            description=f'Successfully added {role_obj.mention} to allowed roles.\n\nMembers with this role can now:\n• Set channel languages (`/setlang`)\n• Remove language settings (`/removelang`)\n• View channel languages (`/getlang`)',
+            description=f'Successfully added {role_obj.mention} to allowed roles.\n\n**Granted Permissions:**\n' + '\n'.join(perm_details) + '\n\n✅ Members with this role can now manage channel language settings.',
             color=discord.Color.green()
         )
         await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1240,10 +1301,11 @@ async def addrole(interaction: discord.Interaction, role: str):
 
 @bot.tree.command(name='removerole', description='Remove a role from language management permissions (Admin only)')
 @app_commands.describe(
-    role='The role to remove from language management permissions'
+    role='Select an allowed role to remove from language management permissions'
 )
-async def removerole(interaction: discord.Interaction, role: discord.Role):
-    """Remove a role from the allowed roles list."""
+@app_commands.autocomplete(role=allowed_role_autocomplete)
+async def removerole(interaction: discord.Interaction, role: str):
+    """Remove a role from the allowed roles list. Only shows roles that have been added."""
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -1255,36 +1317,68 @@ async def removerole(interaction: discord.Interaction, role: discord.Role):
     
     try:
         guild_id = str(interaction.guild.id)
-        role_id = str(role.id)
         
+        # Check if there are any allowed roles
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='No Allowed Roles',
-                description='⚠️ There are no allowed roles configured for this server.',
+                description='⚠️ There are no allowed roles configured for this server.\n\n💡 Use `/addrole` to add roles with language management permissions.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
+        # Convert role ID string to Role object
+        try:
+            role_obj = interaction.guild.get_role(int(role))
+            if not role_obj:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Role not found.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+        except ValueError:
+            emb = make_embed(
+                title='Error',
+                description='❌ Invalid role selection.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        role_id = str(role_obj.id)
+        
+        # Check if role is in allowed list
         if role_id not in allowed_roles[guild_id]:
             emb = make_embed(
-                title='Role Not Found',
-                description=f'⚠️ {role.mention} is not in the allowed roles list.',
+                title='Role Not in List',
+                description=f'⚠️ {role_obj.mention} is not in the allowed roles list.\n\n💡 Only roles added with `/addrole` can be removed.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
+        # Get role permissions details for confirmation message
+        perm_details = []
+        if role_obj.permissions.administrator:
+            perm_details.append("• Administrator privileges")
+        perm_details.append("• Set channel languages (`/setlang`)")
+        perm_details.append("• Remove language settings (`/removelang`)")
+        perm_details.append("• View channel languages (`/getlang`)")
+        
+        # Remove role
         allowed_roles[guild_id].remove(role_id)
         await save_allowed_roles(allowed_roles)
         
         emb = make_embed(
             title='Role Removed ✅',
-            description=f'Successfully removed {role.mention} from allowed roles.\n\nMembers with this role can no longer manage language settings.',
+            description=f'Successfully removed {role_obj.mention} from allowed roles.\n\n**Revoked Permissions:**\n' + '\n'.join(perm_details) + '\n\n⚠️ Members with this role can no longer manage language settings.',
             color=discord.Color.green()
         )
         await interaction.response.send_message(embed=emb, ephemeral=True)
-        logger.info(f"Role {role.name} ({role_id}) removed from allowed roles in guild {interaction.guild.name}")
+        logger.info(f"Role {role_obj.name} ({role_id}) removed from allowed roles in guild {interaction.guild.name}")
         
     except Exception as e:
         logger.error(f"Error in removerole command: {e}")
@@ -1298,36 +1392,46 @@ async def removerole(interaction: discord.Interaction, role: discord.Role):
 
 @bot.tree.command(name='listroles', description='List all roles with language management permissions')
 async def listroles(interaction: discord.Interaction):
-    """List all allowed roles for the current guild."""
+    """List all allowed roles for the current guild with their permission details."""
     try:
         guild_id = str(interaction.guild.id)
         
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='Allowed Roles 📋',
-                description='No specific roles configured.\n\n**Default Permissions:**\n• Server Owner\n• Administrator\n• Manage Channels permission',
+                description='No custom roles configured for language management.\n\n**Default Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control\n\n💡 Use `/addrole` to grant language management permissions to specific roles.',
                 color=discord.Color.blurple()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
-        role_mentions = []
+        # Build role list with permission details
+        role_list = []
         for role_id in allowed_roles[guild_id]:
             role = interaction.guild.get_role(int(role_id))
             if role:
-                role_mentions.append(f'• {role.mention} ({role.name})')
+                # Determine permission level
+                if role.permissions.administrator:
+                    perm_badge = "🛡️ Admin"
+                elif role.permissions.manage_channels:
+                    perm_badge = "⚙️ Manage Channels"
+                else:
+                    perm_badge = "🌐 Language Manager"
+                
+                role_list.append(f'• {role.mention} **{perm_badge}**')
             else:
-                role_mentions.append(f'• ~~Deleted Role~~ (ID: {role_id})')
+                role_list.append(f'• ~~Deleted Role~~ (ID: {role_id})')
         
-        description = '**Roles with language management permissions:**\n\n' + '\n'.join(role_mentions)
-        description += '\n\n**Also have access:**\n• Server Owner\n• Administrator'
+        description = '**Roles with language management permissions:**\n\n' + '\n'.join(role_list)
+        description += '\n\n**Built-in Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control'
+        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/setlang`)\n✅ Remove language settings (`/removelang`)\n✅ View language settings (`/getlang`)'
         
         emb = make_embed(
             title='Allowed Roles 📋',
             description=description,
             color=discord.Color.blurple()
         )
-        emb.set_footer(text=f"Total: {len(allowed_roles[guild_id])} custom role(s)")
+        emb.set_footer(text=f"Total custom roles: {len(allowed_roles[guild_id])} • Use /addrole or /removerole to manage")
         
         await interaction.response.send_message(embed=emb, ephemeral=True)
         
