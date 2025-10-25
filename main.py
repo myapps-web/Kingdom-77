@@ -136,8 +136,6 @@ async def help(interaction: discord.Interaction):
         '`/listlangs` - List all supported languages',
         '`/removelang [channel]` - Remove language setting for a channel',
         '`/listchannels` - List all channels with their language settings',
-        '`/sync` - Manually sync bot commands (Admin only)',
-        '`/clear_commands` - Remove duplicate commands (Admin only)',
         '`/debug` - Show bot debug information (Admin only)',
         '`/ping` - Check if the bot is responsive',
         '`/help` - Show this help message'
@@ -146,43 +144,6 @@ async def help(interaction: discord.Interaction):
     desc = '**Available Commands:**\n\n' + '\n'.join(commands_list)
     emb = make_embed(title='Help', description=desc)
     await interaction.response.send_message(embed=emb, ephemeral=True)
-
-
-@bot.tree.command(name='sync', description='Manually sync bot commands to this server (Admin only)')
-async def sync_commands(interaction: discord.Interaction):
-    """Manually sync commands to the current guild. Useful for new servers or if commands don't appear.
-    Note: This creates guild-specific commands which may appear alongside global commands."""
-    if not interaction.user.guild_permissions.administrator:
-        emb = make_embed(
-            title='Permission Denied',
-            description='⚠️ You need Administrator permission to use this command.',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        return
-    
-    await interaction.response.defer(ephemeral=True)
-    
-    try:
-        guild = interaction.guild
-        bot.tree.copy_global_to(guild=guild)
-        await bot.tree.sync(guild=guild)
-        
-        emb = make_embed(
-            title='Sync Complete',
-            description=f'✅ Successfully synced commands to **{guild.name}**\n\n⚠️ **Note:** If you see duplicate commands, restart Discord or wait for global sync to complete (up to 1 hour).\n\nTo remove duplicates, you may need to kick and re-invite the bot.',
-            color=discord.Color.green()
-        )
-        await interaction.followup.send(embed=emb, ephemeral=True)
-        logger.info(f"Manual sync completed for {guild.name} by {interaction.user}")
-    except Exception as e:
-        emb = make_embed(
-            title='Sync Failed',
-            description=f'❌ Failed to sync commands: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.followup.send(embed=emb, ephemeral=True)
-        logger.error(f"Manual sync failed for {interaction.guild.name}: {e}")
 
 
 @bot.tree.command(name='debug', description='Show bot debug information (Admin only)')
@@ -241,44 +202,6 @@ async def debug_info(interaction: discord.Interaction):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='clear_commands', description='Clear guild-specific commands to remove duplicates (Admin only)')
-async def clear_commands(interaction: discord.Interaction):
-    """Clear guild-specific commands. Useful if you see duplicate commands.
-    Global commands will remain and take up to 1 hour to appear."""
-    if not interaction.user.guild_permissions.administrator:
-        emb = make_embed(
-            title='Permission Denied',
-            description='⚠️ You need Administrator permission to use this command.',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        return
-    
-    await interaction.response.defer(ephemeral=True)
-    
-    try:
-        guild = interaction.guild
-        # Clear all guild-specific commands
-        bot.tree.clear_commands(guild=guild)
-        await bot.tree.sync(guild=guild)
-        
-        emb = make_embed(
-            title='Commands Cleared',
-            description=f'✅ Cleared guild-specific commands from **{guild.name}**\n\n⚠️ **Note:** Global commands will remain active (may take up to 1 hour to appear).\n\nIf commands still appear duplicated:\n1. Restart your Discord app\n2. Wait a few minutes for changes to propagate\n3. If still duplicated, kick and re-invite the bot',
-            color=discord.Color.green()
-        )
-        await interaction.followup.send(embed=emb, ephemeral=True)
-        logger.info(f"Cleared guild commands for {guild.name} by {interaction.user}")
-    except Exception as e:
-        emb = make_embed(
-            title='Clear Failed',
-            description=f'❌ Failed to clear commands: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.followup.send(embed=emb, ephemeral=True)
-        logger.error(f"Clear commands failed for {interaction.guild.name}: {e}")
-
-
 @bot.event
 async def on_ready():
     logger.info(f"Logged in as {bot.user}")
@@ -293,6 +216,18 @@ async def on_ready():
             logger.info("No application commands found in bot.tree.")
     except Exception as e:
         logger.debug(f"Could not list app commands: {e}")
+    
+    # Clear any guild-specific commands from all guilds to prevent duplicates
+    try:
+        for guild in bot.guilds:
+            try:
+                bot.tree.clear_commands(guild=guild)
+                await bot.tree.sync(guild=guild)
+                logger.info(f"Cleared guild-specific commands from {guild.name}")
+            except Exception as e:
+                logger.warning(f"Could not clear commands from {guild.name}: {e}")
+    except Exception as e:
+        logger.error(f"Error clearing guild commands: {e}")
     
     # Sync slash commands globally (one time only)
     try:
