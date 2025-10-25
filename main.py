@@ -291,7 +291,9 @@ def make_embed(title: str = None, description: str = None, *, color: discord.Col
         if bot.user:
             avatar = getattr(bot.user, 'display_avatar', None)
             if avatar:
-                emb.set_author(name=str(bot.user), icon_url=avatar.url)
+                # Use display_name or name without discriminator
+                bot_name = bot.user.display_name if hasattr(bot.user, 'display_name') else bot.user.name
+                emb.set_author(name=bot_name, icon_url=avatar.url)
     except Exception:
         pass
     return emb
