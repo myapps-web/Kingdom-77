@@ -2,6 +2,7 @@ import os
 import json
 import logging
 from typing import Dict
+from datetime import datetime
 
 from dotenv import load_dotenv
 from langdetect import detect, LangDetectException
@@ -520,7 +521,6 @@ class RatingView(discord.ui.View):
         was_update = user_id in bot_ratings
         
         # Store rating with timestamp
-        from datetime import datetime
         bot_ratings[user_id] = {
             'rating': stars,
             'timestamp': datetime.utcnow().isoformat(),
