@@ -515,6 +515,82 @@ async def listlangs(interaction: discord.Interaction):
     emb = make_embed(title='Supported languages', description='\n'.join(langs_list))
     await interaction.response.send_message(embed=emb, ephemeral=True)
 
+class ChannelListView(discord.ui.View):
+    """Paginated view for channel list with 5 channels per page."""
+    def __init__(self, configured_channels: list, unconfigured_channels: list, guild_name: str):
+        super().__init__(timeout=180)  # 3 minutes timeout
+        self.configured = configured_channels
+        self.unconfigured = unconfigured_channels
+        self.guild_name = guild_name
+        self.current_page = 0
+        self.items_per_page = 5
+        
+        # Calculate total pages
+        total_configured_pages = (len(self.configured) + self.items_per_page - 1) // self.items_per_page if self.configured else 1
+        total_unconfigured_pages = (len(self.unconfigured) + self.items_per_page - 1) // self.items_per_page if self.unconfigured else 0
+        self.total_pages = total_configured_pages + total_unconfigured_pages
+        
+        self.update_buttons()
+    
+    def get_embed(self) -> discord.Embed:
+        """Generate embed for current page."""
+        configured_pages = (len(self.configured) + self.items_per_page - 1) // self.items_per_page if self.configured else 1
+        
+        if self.current_page < configured_pages:
+            # Show configured channels page
+            start_idx = self.current_page * self.items_per_page
+            end_idx = min(start_idx + self.items_per_page, len(self.configured))
+            
+            if self.configured:
+                items = self.configured[start_idx:end_idx]
+                desc = '**Channels with Language Settings:**\n\n' + '\n'.join(items)
+            else:
+                desc = '**Channels with Language Settings:**\n\nNo channels have language settings configured.'
+        else:
+            # Show unconfigured channels page
+            page_in_unconfigured = self.current_page - configured_pages
+            start_idx = page_in_unconfigured * self.items_per_page
+            end_idx = min(start_idx + self.items_per_page, len(self.unconfigured))
+            
+            items = self.unconfigured[start_idx:end_idx]
+            desc = '**Channels without Language Settings:**\n\n' + '\n'.join(items)
+        
+        emb = make_embed(
+            title=f'Channel Language Overview - {self.guild_name}',
+            description=desc
+        )
+        emb.set_footer(text=f'Page {self.current_page + 1} of {self.total_pages}')
+        return emb
+    
+    def update_buttons(self):
+        """Enable/disable navigation buttons based on current page."""
+        self.previous_button.disabled = (self.current_page == 0)
+        self.next_button.disabled = (self.current_page >= self.total_pages - 1)
+    
+    @discord.ui.button(label='◀️ Previous', style=discord.ButtonStyle.primary, custom_id='previous')
+    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.get_embed(), view=self)
+        else:
+            await interaction.response.defer()
+    
+    @discord.ui.button(label='Next ▶️', style=discord.ButtonStyle.primary, custom_id='next')
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.get_embed(), view=self)
+        else:
+            await interaction.response.defer()
+    
+    async def on_timeout(self):
+        """Disable buttons when view times out."""
+        for item in self.children:
+            item.disabled = True
+
+
 @bot.tree.command(name='listchannels', description='List all channels with their language settings')
 async def listchannels(interaction: discord.Interaction):
     if not interaction.guild:
@@ -544,29 +620,11 @@ async def listchannels(interaction: discord.Interaction):
                 else:
                     unconfigured_channels.append(f'{channel.mention}: No language set')
         
-        # Create the message
-        message = ['**Channels with Language Settings:**']
-        if configured_channels:
-            message.extend(configured_channels)
-        else:
-            message.append('No channels have language settings configured.')
+        # Create paginated view
+        view = ChannelListView(configured_channels, unconfigured_channels, interaction.guild.name)
+        emb = view.get_embed()
         
-        message.append('\n**Channels without Language Settings:**')
-        if unconfigured_channels:
-            # Limit to first 20 to avoid message too long
-            if len(unconfigured_channels) > 20:
-                message.extend(unconfigured_channels[:20])
-                message.append(f'... and {len(unconfigured_channels) - 20} more')
-            else:
-                message.extend(unconfigured_channels)
-        
-        desc = '\n'.join(message)
-        # Discord embed description limit is 4096 characters
-        if len(desc) > 4096:
-            desc = desc[:4093] + '...'
-        
-        emb = make_embed(title='Channel language overview', description=desc)
-        await interaction.response.send_message(embed=emb, ephemeral=True)
+        await interaction.response.send_message(embed=emb, view=view, ephemeral=True)
     except Exception as e:
         logger.error(f"Error in listchannels command: {e}")
         emb = make_embed(
