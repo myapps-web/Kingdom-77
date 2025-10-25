@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langdetect import detect, LangDetectException
 from googletrans import Translator
 import discord
+import asyncio
 from discord import app_commands
 from discord.ext import commands
 
@@ -38,9 +39,28 @@ def load_channels() -> Dict[str, str]:
         return {}
 
 
-def save_channels(data: Dict[str, str]):
-    with open(CHANNELS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+async def save_channels(data: Dict[str, str]):
+    """Asynchronously save channel language configuration to disk.
+
+    Writing to disk can block the event loop; offload to a thread pool so
+    command handlers and UI callbacks remain responsive.
+    """
+    loop = asyncio.get_running_loop()
+
+    def _write(d):
+        # Use a temporary file to avoid truncation issues on crash
+        tmp = CHANNELS_FILE + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(d, f, ensure_ascii=False, indent=2)
+        # Atomic replace
+        try:
+            os.replace(tmp, CHANNELS_FILE)
+        except Exception:
+            # Fallback to non-atomic write
+            with open(CHANNELS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(d, f, ensure_ascii=False, indent=2)
+
+    await loop.run_in_executor(None, _write, data)
 
 
 # Logging
@@ -144,7 +164,7 @@ class LanguageSelect(discord.ui.Select):
         code = self.values[0]
         channel_id = str(self.view.channel.id)
         channel_langs[channel_id] = code
-        save_channels(channel_langs)
+        await save_channels(channel_langs)
         await interaction.response.send_message(
             f'✅ Channel language set to {SUPPORTED[code]} ({code}) for {self.view.channel.mention}',
             ephemeral=True
@@ -289,7 +309,7 @@ async def removelang(interaction: discord.Interaction, channel: discord.TextChan
     if channel_id in channel_langs:
         old_lang = channel_langs[channel_id]
         del channel_langs[channel_id]
-        save_channels(channel_langs)
+        await save_channels(channel_langs)
         await interaction.response.send_message(
             f'✅ Removed language setting for {target_channel.mention} (was {SUPPORTED[old_lang]}).',
             ephemeral=True
