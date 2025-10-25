@@ -76,10 +76,41 @@ translator = Translator()
 channel_langs = load_channels()
 
 
+def _choose_latency_color(ms: float) -> discord.Color:
+    """Return a color based on latency in milliseconds."""
+    if ms < 100:
+        return discord.Color.green()
+    if ms < 250:
+        return discord.Color.gold()
+    return discord.Color.red()
+
+
+def make_embed(title: str = None, description: str = None, *, color: discord.Color = None) -> discord.Embed:
+    """Create a consistent embed for bot responses."""
+    if color is None:
+        color = discord.Color.blurple()
+    emb = discord.Embed(title=title, description=description, color=color)
+    # try to set bot avatar as author icon when available
+    try:
+        if bot.user:
+            avatar = getattr(bot.user, 'display_avatar', None)
+            if avatar:
+                emb.set_author(name=str(bot.user), icon_url=avatar.url)
+    except Exception:
+        pass
+    return emb
+
+
 # Slash command for ping
 @bot.tree.command(name='ping', description='Check if the bot is responsive')
 async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message('Pong! 🏓', ephemeral=True)
+    # Show websocket latency and color-code by severity. This response is public in the channel.
+    ws_ms = round(bot.latency * 1000)
+    color = _choose_latency_color(ws_ms)
+    emoji = "🟢" if ws_ms < 100 else ("🟡" if ws_ms < 250 else "🔴")
+    emb = make_embed(title=f"Pong! {emoji} 🏓", description=f"WebSocket latency: **{ws_ms} ms**", color=color)
+    emb.set_footer(text="Latency may vary. Measures websocket heartbeat latency.")
+    await interaction.response.send_message(embed=emb, ephemeral=False)
 
 @bot.tree.command(name='help', description='Show all available commands')
 async def help(interaction: discord.Interaction):
@@ -93,10 +124,9 @@ async def help(interaction: discord.Interaction):
         '`/help` - Show this help message'
     ]
     
-    await interaction.response.send_message(
-        '**Available Commands:**\n\n' + '\n'.join(commands_list),
-        ephemeral=True
-    )
+    desc = '**Available Commands:**\n\n' + '\n'.join(commands_list)
+    emb = make_embed(title='Help', description=desc)
+    await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
 @bot.event
@@ -165,10 +195,8 @@ class LanguageSelect(discord.ui.Select):
         channel_id = str(self.view.channel.id)
         channel_langs[channel_id] = code
         await save_channels(channel_langs)
-        await interaction.response.send_message(
-            f'✅ Channel language set to {SUPPORTED[code]} ({code}) for {self.view.channel.mention}',
-            ephemeral=True
-        )
+        emb = make_embed(title='Language set', description=f'✅ Channel language set to **{SUPPORTED[code]}** ({code}) for {self.view.channel.mention}', color=discord.Color.green())
+        await interaction.response.send_message(embed=emb, ephemeral=True)
 
 class ChannelSelect(discord.ui.ChannelSelect):
     def __init__(self):
@@ -240,23 +268,17 @@ async def getlang(interaction: discord.Interaction, channel: discord.TextChannel
     current_lang = channel_langs.get(channel_id)
     
     if current_lang:
-        await interaction.response.send_message(
-            f'Language for {target_channel.mention}: {SUPPORTED[current_lang]} ({current_lang})',
-            ephemeral=True
-        )
+        emb = make_embed(title='Channel Language', description=f'Language for {target_channel.mention}: **{SUPPORTED[current_lang]}** ({current_lang})')
+        await interaction.response.send_message(embed=emb, ephemeral=True)
     else:
-        await interaction.response.send_message(
-            f'No language set for {target_channel.mention}',
-            ephemeral=True
-        )
+        emb = make_embed(title='Channel Language', description=f'No language set for {target_channel.mention}', color=discord.Color.dark_grey())
+        await interaction.response.send_message(embed=emb, ephemeral=True)
 
 @bot.tree.command(name='listlangs', description='List all supported languages')
 async def listlangs(interaction: discord.Interaction):
     langs_list = [f'{code}: {name}' for code, name in SUPPORTED.items()]
-    await interaction.response.send_message(
-        'Supported languages:\n' + '\n'.join(langs_list),
-        ephemeral=True
-    )
+    emb = make_embed(title='Supported languages', description='\n'.join(langs_list))
+    await interaction.response.send_message(embed=emb, ephemeral=True)
 
 @bot.tree.command(name='listchannels', description='List all channels with their language settings')
 async def listchannels(interaction: discord.Interaction):
@@ -292,7 +314,9 @@ async def listchannels(interaction: discord.Interaction):
     if unconfigured_channels:
         message.extend(unconfigured_channels)
     
-    await interaction.response.send_message('\n'.join(message), ephemeral=True)
+    desc = '\n'.join(message)
+    emb = make_embed(title='Channel language overview', description=desc)
+    await interaction.response.send_message(embed=emb, ephemeral=True)
 
 @bot.tree.command(name='removelang', description='Remove language setting for a channel')
 @app_commands.describe(
@@ -310,15 +334,11 @@ async def removelang(interaction: discord.Interaction, channel: discord.TextChan
         old_lang = channel_langs[channel_id]
         del channel_langs[channel_id]
         await save_channels(channel_langs)
-        await interaction.response.send_message(
-            f'✅ Removed language setting for {target_channel.mention} (was {SUPPORTED[old_lang]}).',
-            ephemeral=True
-        )
+        emb = make_embed(title='Removed', description=f'✅ Removed language setting for {target_channel.mention} (was {SUPPORTED[old_lang]}).', color=discord.Color.green())
+        await interaction.response.send_message(embed=emb, ephemeral=True)
     else:
-        await interaction.response.send_message(
-            f'No language was set for {target_channel.mention}.',
-            ephemeral=True
-        )
+        emb = make_embed(title='Remove language', description=f'No language was set for {target_channel.mention}.', color=discord.Color.dark_grey())
+        await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
 @bot.event
@@ -366,8 +386,13 @@ async def on_message(message: discord.Message):
         logger.debug(f"Translating message from detected='{detected}' to target='{target}' in channel={channel_id}")
         res = translator.translate(content, src=detected, dest=target)
         translated = getattr(res, 'text', str(res))
-        # send reply
-        await message.reply(translated, mention_author=False)
+        # send reply as embed
+        emb = make_embed(title='Translation', description=translated, color=discord.Color.blue())
+        try:
+            emb.set_footer(text=f"{SUPPORTED.get(detected, detected)} → {SUPPORTED.get(target, target)}")
+        except Exception:
+            pass
+        await message.reply(embed=emb, mention_author=False)
         logger.info(f"Detected '{detected}' message in '{target}' channel → Translated to {SUPPORTED[target]}")
     except Exception as e:
         logger.error(f"Translation error: {e}")
