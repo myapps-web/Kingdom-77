@@ -864,50 +864,67 @@ async def setlang(interaction: discord.Interaction, channel: str = None):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='getlang', description='Get language setting for a channel')
+@bot.tree.command(name='getlang', description='Get language setting for a configured channel')
 @app_commands.describe(
-    channel='Select channel to check language for (optional, defaults to current channel)'
+    channel='Select a channel from the list (only channels with language settings are shown)'
 )
 @app_commands.autocomplete(channel=configured_channel_autocomplete)
-async def getlang(interaction: discord.Interaction, channel: str = None):
-    """Get the current language setting for a channel."""
+async def getlang(interaction: discord.Interaction, channel: str):
+    """Get the current language setting for a channel. Only shows channels that have a language configured."""
     try:
-        if channel:
-            try:
-                target_channel = interaction.guild.get_channel(int(channel))
-                if not target_channel:
-                    emb = make_embed(
-                        title='Error',
-                        description='❌ Channel not found.',
-                        color=discord.Color.red()
-                    )
-                    await interaction.response.send_message(embed=emb, ephemeral=True)
-                    return
-            except ValueError:
+        # Check if a channel was selected
+        if not channel:
+            emb = make_embed(
+                title='Channel Required',
+                description='⚠️ Please select a channel from the dropdown list.\n\n💡 **Tip:** Only channels with configured languages appear in the list.',
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+            
+        try:
+            target_channel = interaction.guild.get_channel(int(channel))
+            if not target_channel:
                 emb = make_embed(
                     title='Error',
-                    description='❌ Invalid channel.',
+                    description='❌ Channel not found.',
                     color=discord.Color.red()
                 )
                 await interaction.response.send_message(embed=emb, ephemeral=True)
                 return
-        else:
-            target_channel = interaction.channel
+        except ValueError:
+            emb = make_embed(
+                title='Error',
+                description='❌ Invalid channel selection.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
         
         channel_id = str(target_channel.id)
         lang_code = channel_langs.get(channel_id)
         
         if lang_code:
             lang_name = SUPPORTED.get(lang_code, 'Unknown')
+            flag_emoji = {
+                'ar': '🇸🇦',
+                'en': '🇬🇧',
+                'tr': '🇹🇷',
+                'ja': '🇯🇵',
+                'fr': '🇫🇷',
+                'ko': '🇰🇷',
+                'it': '🇮🇹'
+            }.get(lang_code, '🌐')
+            
             emb = make_embed(
-                title='Channel Language',
-                description=f'{target_channel.mention} is set to **{lang_name}** ({lang_code})',
+                title=f'{flag_emoji} Channel Language',
+                description=f'{target_channel.mention} is set to **{lang_name}** (`{lang_code}`)\n\n✅ Messages in other languages will be automatically translated to {lang_name}.',
                 color=discord.Color.green()
             )
         else:
             emb = make_embed(
-                title='Channel Language',
-                description=f'{target_channel.mention} has no language configured.',
+                title='No Language Set',
+                description=f'{target_channel.mention} has no language configured.\n\n💡 Use `/setlang` to set a language for this channel.',
                 color=discord.Color.dark_grey()
             )
         
