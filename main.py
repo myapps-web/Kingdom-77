@@ -368,6 +368,37 @@ async def channel_autocomplete(
     ]
 
 
+async def configured_channel_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Autocomplete for configured channels only - shows only channels with language settings."""
+    if not interaction.guild:
+        return []
+    
+    # Get guild channel IDs
+    guild_channel_ids = {str(ch.id) for ch in interaction.guild.channels}
+    
+    # Filter to only configured channels in this guild
+    configured = []
+    for ch_id, lang_code in channel_langs.items():
+        if ch_id in guild_channel_ids:
+            ch = interaction.guild.get_channel(int(ch_id))
+            if ch and isinstance(ch, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel)):
+                lang_name = SUPPORTED.get(lang_code, lang_code)
+                configured.append((ch, lang_name))
+    
+    # Filter by current input
+    if current:
+        configured = [(ch, lang) for ch, lang in configured if current.lower() in ch.name.lower()]
+    
+    # Return up to 25 choices
+    return [
+        app_commands.Choice(name=f"#{ch.name} ({lang})", value=str(ch.id))
+        for ch, lang in configured[:25]
+    ]
+
+
 @bot.tree.command(name='setlang', description='Set default language for a channel')
 @app_commands.describe(
     channel='Select channel to set language for (optional, defaults to current channel)'
@@ -428,16 +459,54 @@ async def setlang(interaction: discord.Interaction, channel: str = None):
 @app_commands.describe(
     channel='Select channel to check language for (optional, defaults to current channel)'
 )
-async def getlang(interaction: discord.Interaction, channel: discord.TextChannel = None):
-    target_channel = channel or interaction.channel
-    channel_id = str(target_channel.id)
-    current_lang = channel_langs.get(channel_id)
-    
-    if current_lang:
-        emb = make_embed(title='Channel Language', description=f'Language for {target_channel.mention}: **{SUPPORTED[current_lang]}** ({current_lang})')
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-    else:
-        emb = make_embed(title='Channel Language', description=f'No language set for {target_channel.mention}', color=discord.Color.dark_grey())
+@app_commands.autocomplete(channel=configured_channel_autocomplete)
+async def getlang(interaction: discord.Interaction, channel: str = None):
+    try:
+        if channel:
+            try:
+                target_channel = interaction.guild.get_channel(int(channel))
+                if not target_channel:
+                    emb = make_embed(
+                        title='Error',
+                        description='❌ Channel not found.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+            except ValueError:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Invalid channel.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+        else:
+            target_channel = interaction.channel
+        
+        channel_id = str(target_channel.id)
+        current_lang = channel_langs.get(channel_id)
+        
+        if current_lang:
+            emb = make_embed(
+                title='Channel Language',
+                description=f'Language for {target_channel.mention}: **{SUPPORTED[current_lang]}** ({current_lang})'
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+        else:
+            emb = make_embed(
+                title='Channel Language',
+                description=f'No language set for {target_channel.mention}',
+                color=discord.Color.dark_grey()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in getlang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 @bot.tree.command(name='listlangs', description='List all supported languages')
@@ -509,9 +578,10 @@ async def listchannels(interaction: discord.Interaction):
 
 @bot.tree.command(name='removelang', description='Remove language setting for a channel')
 @app_commands.describe(
-    channel='Select channel to remove language setting from (optional, defaults to current channel)'
+    channel='Select channel to remove language setting from (shows only configured channels)'
 )
-async def removelang(interaction: discord.Interaction, channel: discord.TextChannel = None):
+@app_commands.autocomplete(channel=configured_channel_autocomplete)
+async def removelang(interaction: discord.Interaction, channel: str = None):
     if not interaction.user.guild_permissions.manage_channels:
         emb = make_embed(
             title='Permission Denied',
@@ -522,7 +592,28 @@ async def removelang(interaction: discord.Interaction, channel: discord.TextChan
         return
 
     try:
-        target_channel = channel or interaction.channel
+        if channel:
+            try:
+                target_channel = interaction.guild.get_channel(int(channel))
+                if not target_channel:
+                    emb = make_embed(
+                        title='Error',
+                        description='❌ Channel not found.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+            except ValueError:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Invalid channel.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+        else:
+            target_channel = interaction.channel
+        
         channel_id = str(target_channel.id)
         
         if channel_id in channel_langs:
@@ -591,8 +682,9 @@ async def on_message(message: discord.Message):
         logger.debug(f"Message already in target language ({target}), skipping translation")
         return
 
-    if detected not in SUPPORTED or target not in SUPPORTED:
-        logger.debug(f"Unsupported language pair: {detected} -> {target}")
+    # Check if target language is supported (we can translate FROM any language TO supported languages)
+    if target not in SUPPORTED:
+        logger.debug(f"Target language {target} is not supported")
         return
 
     # translate
@@ -601,14 +693,22 @@ async def on_message(message: discord.Message):
         logger.info(f"Translating from {detected} to {target} in channel {channel_id}")
         res = translator.translate(content, src=detected, dest=target)
         translated = getattr(res, 'text', str(res))
-        # send reply as embed
-        emb = make_embed(title='Translation', description=translated, color=discord.Color.blue())
-        try:
-            emb.set_footer(text=f"{SUPPORTED.get(detected, detected)} → {SUPPORTED.get(target, target)}")
-        except Exception:
-            pass
-        await message.reply(embed=emb, mention_author=False)
-        logger.info(f"Detected '{detected}' message in '{target}' channel → Translated to {SUPPORTED[target]}")
+        
+        # Only send translation if it's different from original
+        if translated and translated.strip() != content.strip():
+            # send reply as embed
+            emb = make_embed(title='Translation', description=translated, color=discord.Color.blue())
+            try:
+                # Show detected language name if it's in SUPPORTED, otherwise just the code
+                detected_name = SUPPORTED.get(detected, detected)
+                target_name = SUPPORTED.get(target, target)
+                emb.set_footer(text=f"{detected_name} → {target_name}")
+            except Exception:
+                pass
+            await message.reply(embed=emb, mention_author=False)
+            logger.info(f"Detected '{detected}' message in '{target}' channel → Translated to {SUPPORTED.get(target, target)}")
+        else:
+            logger.debug(f"Translation result is same as original, skipping")
     except Exception as e:
         logger.error(f"Translation error: {e}")
     # Allow other commands (if any) to be processed
