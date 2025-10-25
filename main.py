@@ -721,7 +721,7 @@ class TranslationLanguageView(discord.ui.View):
 
 
 class ChannelListView(discord.ui.View):
-    """Paginated view for channel list with 5 channels per page."""
+    """Paginated view for channel list with dropdown filter and navigation."""
     
     def __init__(self, configured_channels: list, unconfigured_channels: list, guild_name: str):
         super().__init__(timeout=180)
@@ -730,48 +730,61 @@ class ChannelListView(discord.ui.View):
         self.guild_name = guild_name
         self.current_page = 0
         self.items_per_page = 5
+        self.view_mode = 'configured'  # 'configured' or 'unconfigured'
         
-        # Calculate total pages
-        total_configured_pages = (len(self.configured) + self.items_per_page - 1) // self.items_per_page if self.configured else 1
-        total_unconfigured_pages = (len(self.unconfigured) + self.items_per_page - 1) // self.items_per_page if self.unconfigured else 0
-        self.total_pages = total_configured_pages + total_unconfigured_pages
+        # Add dropdown first
+        self.add_item(ChannelFilterSelect(self))
+        
+        # Calculate total pages for each mode
+        self.configured_pages = (len(self.configured) + self.items_per_page - 1) // self.items_per_page if self.configured else 0
+        self.unconfigured_pages = (len(self.unconfigured) + self.items_per_page - 1) // self.items_per_page if self.unconfigured else 0
         
         self.update_buttons()
     
+    def get_total_pages(self) -> int:
+        """Get total pages for current view mode."""
+        if self.view_mode == 'configured':
+            return max(1, self.configured_pages)
+        else:
+            return max(1, self.unconfigured_pages)
+    
     def get_embed(self) -> discord.Embed:
-        """Generate embed for current page."""
-        configured_pages = (len(self.configured) + self.items_per_page - 1) // self.items_per_page if self.configured else 1
-        
-        if self.current_page < configured_pages:
-            start_idx = self.current_page * self.items_per_page
-            end_idx = min(start_idx + self.items_per_page, len(self.configured))
-            
-            if self.configured:
+        """Generate embed for current page and view mode."""
+        if self.view_mode == 'configured':
+            if not self.configured:
+                desc = '**Channels with Language Settings:**\n\n❌ No channels have language settings configured.\n\n💡 Use `/setlang` to configure channel languages.'
+            else:
+                start_idx = self.current_page * self.items_per_page
+                end_idx = min(start_idx + self.items_per_page, len(self.configured))
                 items = self.configured[start_idx:end_idx]
                 desc = '**Channels with Language Settings:**\n\n' + '\n'.join(items)
+        else:  # unconfigured
+            if not self.unconfigured:
+                desc = '**Channels without Language Settings:**\n\n✅ All channels have language settings configured!'
             else:
-                desc = '**Channels with Language Settings:**\n\nNo channels have language settings configured.'
-        else:
-            page_in_unconfigured = self.current_page - configured_pages
-            start_idx = page_in_unconfigured * self.items_per_page
-            end_idx = min(start_idx + self.items_per_page, len(self.unconfigured))
-            
-            items = self.unconfigured[start_idx:end_idx]
-            desc = '**Channels without Language Settings:**\n\n' + '\n'.join(items)
+                start_idx = self.current_page * self.items_per_page
+                end_idx = min(start_idx + self.items_per_page, len(self.unconfigured))
+                items = self.unconfigured[start_idx:end_idx]
+                desc = '**Channels without Language Settings:**\n\n' + '\n'.join(items)
         
+        total_pages = self.get_total_pages()
         emb = make_embed(
             title=f'Channel Language Overview - {self.guild_name}',
             description=desc
         )
-        emb.set_footer(text=f'Page {self.current_page + 1} of {self.total_pages}')
+        emb.set_footer(text=f'Page {self.current_page + 1} of {total_pages} • Filter: {self.view_mode.title()}')
         return emb
     
     def update_buttons(self):
-        """Enable/disable navigation buttons based on current page."""
-        self.previous_button.disabled = (self.current_page == 0)
-        self.next_button.disabled = (self.current_page >= self.total_pages - 1)
+        """Enable/disable navigation buttons based on current page and available data."""
+        total_pages = self.get_total_pages()
+        has_data = (self.view_mode == 'configured' and self.configured) or (self.view_mode == 'unconfigured' and self.unconfigured)
+        
+        # Disable buttons if no data or only one page
+        self.previous_button.disabled = (self.current_page == 0) or not has_data or total_pages <= 1
+        self.next_button.disabled = (self.current_page >= total_pages - 1) or not has_data or total_pages <= 1
     
-    @discord.ui.button(label='◀️ Previous', style=discord.ButtonStyle.primary, custom_id='previous')
+    @discord.ui.button(label='◀️', style=discord.ButtonStyle.secondary, custom_id='previous', row=1)
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page > 0:
             self.current_page -= 1
@@ -780,9 +793,10 @@ class ChannelListView(discord.ui.View):
         else:
             await interaction.response.defer()
     
-    @discord.ui.button(label='Next ▶️', style=discord.ButtonStyle.primary, custom_id='next')
+    @discord.ui.button(label='▶️', style=discord.ButtonStyle.secondary, custom_id='next', row=1)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page < self.total_pages - 1:
+        total_pages = self.get_total_pages()
+        if self.current_page < total_pages - 1:
             self.current_page += 1
             self.update_buttons()
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
@@ -790,9 +804,55 @@ class ChannelListView(discord.ui.View):
             await interaction.response.defer()
     
     async def on_timeout(self):
-        """Disable buttons when view times out."""
+        """Disable all components when view times out."""
         for item in self.children:
             item.disabled = True
+
+
+class ChannelFilterSelect(discord.ui.Select):
+    """Dropdown to filter between configured and unconfigured channels."""
+    
+    def __init__(self, parent_view: ChannelListView):
+        self.parent_view = parent_view
+        
+        # Count channels
+        configured_count = len(parent_view.configured)
+        unconfigured_count = len(parent_view.unconfigured)
+        
+        options = [
+            discord.SelectOption(
+                label=f'Channels with Language ({configured_count})',
+                value='configured',
+                description='Show channels that have language settings',
+                emoji='✅',
+                default=True
+            ),
+            discord.SelectOption(
+                label=f'Channels without Language ({unconfigured_count})',
+                value='unconfigured',
+                description='Show channels without language settings',
+                emoji='⚪'
+            )
+        ]
+        
+        super().__init__(
+            placeholder='Select channel filter...',
+            options=options,
+            custom_id='channel_filter',
+            row=0
+        )
+    
+    async def callback(self, interaction: discord.Interaction):
+        """Handle filter selection."""
+        self.parent_view.view_mode = self.values[0]
+        self.parent_view.current_page = 0  # Reset to first page
+        
+        # Update dropdown default selection
+        for option in self.options:
+            option.default = (option.value == self.values[0])
+        
+        self.parent_view.update_buttons()
+        await interaction.response.edit_message(embed=self.parent_view.get_embed(), view=self.parent_view)
 
 
 # ============================================================================
