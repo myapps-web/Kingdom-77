@@ -246,8 +246,8 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Global state
 channel_langs = load_channels()
-bot_ratings = {}
-allowed_roles = {}
+bot_ratings = load_ratings()
+allowed_roles = load_allowed_roles()
 role_languages = load_role_languages()
 
 # Translation cache for faster responses
@@ -1089,6 +1089,10 @@ async def help(interaction: discord.Interaction):
         '`/listchannels` - List all channels with their language settings',
         '`/listlangs` - List all supported languages',
         '',
+        '**Translation Features:**',
+        '`Right-click message → Translate Message` - Translate any message to your language',
+        '💡 *Requires role with assigned language*',
+        '',
         '**Bot Information:**',
         '`/rate` - Rate your experience with the bot',
         '`/ratings` - View bot rating statistics',
@@ -1099,10 +1103,17 @@ async def help(interaction: discord.Interaction):
     if is_admin:
         admin_commands = [
             '',
-            '**Admin Commands:**',
+            '**Admin - Language Settings:**',
             '`/addrole <role>` - Add a role that can manage language settings',
             '`/removerole <role>` - Remove a role from language management',
             '`/listroles` - List all roles with language management permissions',
+            '',
+            '**Admin - Role Languages:**',
+            '`/setrolelang <role> <language>` - Assign a language to a role',
+            '`/removerolelang <role>` - Remove language assignment from a role',
+            '`/listrolelanguages` - List all roles with language assignments',
+            '',
+            '**Admin - Debug:**',
             '`/debug` - Show bot debug information'
         ]
         commands_list.extend(admin_commands)
