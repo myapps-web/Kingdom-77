@@ -18,7 +18,11 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 GUILD_ID = os.getenv("GUILD_ID")
 
-CHANNELS_FILE = os.path.join(os.path.dirname(__file__), 'channels.json')
+# Use absolute path or current working directory for channels.json
+if os.path.dirname(__file__):
+    CHANNELS_FILE = os.path.join(os.path.dirname(__file__), 'channels.json')
+else:
+    CHANNELS_FILE = 'channels.json'
 
 SUPPORTED = {
     'ar': 'Arabic',
@@ -34,8 +38,14 @@ SUPPORTED = {
 def load_channels() -> Dict[str, str]:
     try:
         with open(CHANNELS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            logger.info(f"Loaded {len(data)} channel configurations from {CHANNELS_FILE}")
+            return data
     except FileNotFoundError:
+        logger.info(f"No channels.json found at {CHANNELS_FILE}, starting fresh")
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading channels from {CHANNELS_FILE}: {e}")
         return {}
 
 
@@ -50,15 +60,21 @@ async def save_channels(data: Dict[str, str]):
     def _write(d):
         # Use a temporary file to avoid truncation issues on crash
         tmp = CHANNELS_FILE + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(d, f, ensure_ascii=False, indent=2)
-        # Atomic replace
         try:
-            os.replace(tmp, CHANNELS_FILE)
-        except Exception:
-            # Fallback to non-atomic write
-            with open(CHANNELS_FILE, 'w', encoding='utf-8') as f:
+            with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
+            # Atomic replace
+            os.replace(tmp, CHANNELS_FILE)
+            logger.info(f"Saved {len(d)} channel configurations to {CHANNELS_FILE}")
+        except Exception as e:
+            logger.error(f"Error saving to {CHANNELS_FILE}: {e}")
+            # Fallback to direct write
+            try:
+                with open(CHANNELS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(d, f, ensure_ascii=False, indent=2)
+                logger.info(f"Fallback: Saved {len(d)} configurations directly to {CHANNELS_FILE}")
+            except Exception as e2:
+                logger.error(f"Fallback save also failed: {e2}")
 
     await loop.run_in_executor(None, _write, data)
 
@@ -164,6 +180,62 @@ async def sync_commands(interaction: discord.Interaction):
         )
         await interaction.followup.send(embed=emb, ephemeral=True)
         logger.error(f"Manual sync failed for {interaction.guild.name}: {e}")
+
+
+@bot.tree.command(name='debug', description='Show bot debug information (Admin only)')
+async def debug_info(interaction: discord.Interaction):
+    """Show debug information. Requires administrator permission."""
+    if not interaction.user.guild_permissions.administrator:
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need Administrator permission to use this command.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    try:
+        # Get channel configurations
+        total_configs = len(channel_langs)
+        guild_channels = [str(c.id) for c in interaction.guild.channels]
+        guild_configs = {ch_id: lang for ch_id, lang in channel_langs.items() if ch_id in guild_channels}
+        
+        info = [
+            f"**Total channel configurations:** {total_configs}",
+            f"**Configurations in this server:** {len(guild_configs)}",
+            f"**Channels file path:** `{CHANNELS_FILE}`",
+            f"**Bot is in {len(bot.guilds)} server(s)**",
+            ""
+        ]
+        
+        if guild_configs:
+            info.append("**Configured channels in this server:**")
+            for ch_id, lang in list(guild_configs.items())[:10]:  # Show first 10
+                try:
+                    channel = interaction.guild.get_channel(int(ch_id))
+                    if channel:
+                        info.append(f"• {channel.mention}: {SUPPORTED.get(lang, lang)}")
+                    else:
+                        info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)} (channel not found)")
+                except:
+                    info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)}")
+            
+            if len(guild_configs) > 10:
+                info.append(f"... and {len(guild_configs) - 10} more")
+        else:
+            info.append("No channels configured in this server.")
+        
+        desc = '\n'.join(info)
+        emb = make_embed(title='Debug Information', description=desc, color=discord.Color.blue())
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in debug command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
 @bot.event
@@ -538,19 +610,23 @@ async def on_message(message: discord.Message):
 
     try:
         detected = detect(content)
-    except LangDetectException:
+        logger.debug(f"Detected language: {detected} for message in channel {channel_id} (target: {target})")
+    except LangDetectException as e:
+        logger.debug(f"Could not detect language for message: {e}")
         return
 
     if detected == target:
+        logger.debug(f"Message already in target language ({target}), skipping translation")
         return
 
     if detected not in SUPPORTED or target not in SUPPORTED:
+        logger.debug(f"Unsupported language pair: {detected} -> {target}")
         return
 
     # translate
     try:
         # Pass detected language as source to translator to avoid wrong auto-detection
-        logger.debug(f"Translating message from detected='{detected}' to target='{target}' in channel={channel_id}")
+        logger.info(f"Translating from {detected} to {target} in channel {channel_id}")
         res = translator.translate(content, src=detected, dest=target)
         translated = getattr(res, 'text', str(res))
         # send reply as embed
