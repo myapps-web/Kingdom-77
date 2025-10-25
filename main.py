@@ -57,7 +57,7 @@ else:
 # Create data directory if it doesn't exist
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Supported languages
+# Supported languages for translation
 SUPPORTED = {
     'ar': 'Arabic',
     'en': 'English',
@@ -66,6 +66,20 @@ SUPPORTED = {
     'fr': 'French',
     'ko': 'Korean',
     'it': 'Italian'
+}
+
+# Extended language names for better detection display
+LANGUAGE_NAMES = {
+    'ar': 'Arabic', 'en': 'English', 'tr': 'Turkish', 'ja': 'Japanese',
+    'fr': 'French', 'ko': 'Korean', 'it': 'Italian', 'es': 'Spanish',
+    'de': 'German', 'pt': 'Portuguese', 'ru': 'Russian', 'zh-cn': 'Chinese',
+    'zh-tw': 'Chinese (Traditional)', 'hi': 'Hindi', 'bn': 'Bengali',
+    'ur': 'Urdu', 'id': 'Indonesian', 'ms': 'Malay', 'th': 'Thai',
+    'vi': 'Vietnamese', 'tl': 'Filipino', 'nl': 'Dutch', 'pl': 'Polish',
+    'uk': 'Ukrainian', 'ro': 'Romanian', 'el': 'Greek', 'cs': 'Czech',
+    'sv': 'Swedish', 'da': 'Danish', 'fi': 'Finnish', 'no': 'Norwegian',
+    'he': 'Hebrew', 'fa': 'Persian', 'sw': 'Swahili', 'so': 'Somali',
+    'auto': 'Auto-detected'
 }
 
 # Logging configuration
@@ -671,7 +685,7 @@ class TranslationLanguageView(discord.ui.View):
                     return
                 
                 # Create translation embed
-                source_name = SUPPORTED.get(self.source_lang, self.source_lang)
+                source_name = LANGUAGE_NAMES.get(self.source_lang, f'Unknown ({self.source_lang})')
                 flag_emoji = {
                     'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
                     'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
@@ -1001,7 +1015,7 @@ async def translate_message_context(interaction: discord.Interaction, message: d
                     return
                 
                 # Create translation embed
-                source_name = SUPPORTED.get(detected, detected)
+                source_name = LANGUAGE_NAMES.get(detected, f'Unknown ({detected})')
                 flag_emoji = {
                     'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
                     'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹'
