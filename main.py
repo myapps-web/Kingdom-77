@@ -1417,13 +1417,31 @@ async def removelang(interaction: discord.Interaction, channel: str = None):
         
         if channel_id in channel_langs:
             old_lang = channel_langs[channel_id]
+            lang_name = SUPPORTED.get(old_lang, old_lang)
+            flag_emoji = {
+                'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+            }.get(old_lang, '🌐')
+            
             del channel_langs[channel_id]
             await save_channels(channel_langs)
+            
             emb = make_embed(
-                title='Removed',
-                description=f'✅ Removed language setting for {target_channel.mention} (was {SUPPORTED[old_lang]}).',
+                title='Language Setting Removed ✅',
+                description=f'Successfully removed language configuration from {target_channel.mention}',
                 color=discord.Color.green()
             )
+            emb.add_field(
+                name='🗑️ Removed Language',
+                value=f'{flag_emoji} **{lang_name}** (`{old_lang}`)',
+                inline=False
+            )
+            emb.add_field(
+                name='⚠️ Impact',
+                value='Messages in this channel will no longer be automatically translated.',
+                inline=False
+            )
+            emb.set_footer(text=f'Use /setlang to configure a new language')
             await interaction.response.send_message(embed=emb, ephemeral=True)
         else:
             emb = make_embed(
@@ -1675,9 +1693,20 @@ async def removerole(interaction: discord.Interaction, role: str):
         
         emb = make_embed(
             title='Role Removed ✅',
-            description=f'Successfully removed {role_obj.mention} from allowed roles.\n\n**Revoked Permissions:**\n' + '\n'.join(perm_details) + '\n\n⚠️ Members with this role can no longer manage language settings.',
+            description=f'Successfully removed {role_obj.mention} from language management permissions.',
             color=discord.Color.green()
         )
+        emb.add_field(
+            name='🗑️ Revoked Permissions',
+            value='\n'.join(perm_details),
+            inline=False
+        )
+        emb.add_field(
+            name='⚠️ Impact',
+            value='Members with this role can no longer manage channel language settings.',
+            inline=False
+        )
+        emb.set_footer(text=f'Use /addrole to add it back • Remaining allowed roles: {len(allowed_roles.get(guild_id, []))}')
         await interaction.response.send_message(embed=emb, ephemeral=True)
         logger.info(f"Role {role_obj.name} ({role_id}) removed from allowed roles in guild {interaction.guild.name}")
         
@@ -1853,6 +1882,10 @@ async def removerolelang(interaction: discord.Interaction, role: discord.Role):
         # Get language before removing
         old_lang = role_languages[guild_id][role_id]
         lang_name = SUPPORTED.get(old_lang, old_lang)
+        flag_emoji = {
+            'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+            'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+        }.get(old_lang, '🌐')
         
         # Remove
         del role_languages[guild_id][role_id]
@@ -1865,9 +1898,20 @@ async def removerolelang(interaction: discord.Interaction, role: discord.Role):
         
         emb = make_embed(
             title='Role Language Removed ✅',
-            description=f'Language assignment removed from {role.mention}.\n\n**Previous Language:** {lang_name}\n\n⚠️ Members with this role will no longer be able to use the translation context menu.',
+            description=f'Successfully removed language assignment from {role.mention}',
             color=discord.Color.green()
         )
+        emb.add_field(
+            name='🗑️ Removed Language',
+            value=f'{flag_emoji} **{lang_name}** (`{old_lang}`)',
+            inline=False
+        )
+        emb.add_field(
+            name='⚠️ Impact',
+            value='Members with this role can no longer use "Translate Message" context menu for automatic translation.',
+            inline=False
+        )
+        emb.set_footer(text=f'Use /setrolelang to assign a new language')
         
         await interaction.response.send_message(embed=emb, ephemeral=True)
         logger.info(f"Role {role.name} language removed in guild {interaction.guild.name}")
