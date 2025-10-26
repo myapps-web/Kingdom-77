@@ -125,6 +125,97 @@ BOT_PERMISSIONS = {
     }
 }
 
+# Translation messages for different languages
+TRANSLATION_MESSAGES = {
+    'ar': {
+        'same_language': '⚠️ هذه الرسالة بالفعل باللغة العربية.',
+        'same_language_title': 'نفس اللغة',
+        'translation_failed': '❌ فشل ترجمة الرسالة. الرجاء المحاولة مرة أخرى.',
+        'translation_failed_title': 'فشلت الترجمة',
+        'translation_error': '❌ حدث خطأ أثناء الترجمة:',
+        'translation_error_title': 'خطأ في الترجمة',
+        'original_message': '📝 الرسالة الأصلية',
+        'to': 'إلى'
+    },
+    'en': {
+        'same_language': '⚠️ This message is already in English.',
+        'same_language_title': 'Same Language',
+        'translation_failed': '❌ Could not translate the message. Please try again.',
+        'translation_failed_title': 'Translation Failed',
+        'translation_error': '❌ An error occurred during translation:',
+        'translation_error_title': 'Translation Error',
+        'original_message': '📝 Original Message',
+        'to': 'to'
+    },
+    'tr': {
+        'same_language': '⚠️ Bu mesaj zaten Türkçe.',
+        'same_language_title': 'Aynı Dil',
+        'translation_failed': '❌ Mesaj çevrilemedi. Lütfen tekrar deneyin.',
+        'translation_failed_title': 'Çeviri Başarısız',
+        'translation_error': '❌ Çeviri sırasında bir hata oluştu:',
+        'translation_error_title': 'Çeviri Hatası',
+        'original_message': '📝 Orijinal Mesaj',
+        'to': 'için'
+    },
+    'ja': {
+        'same_language': '⚠️ このメッセージはすでに日本語です。',
+        'same_language_title': '同じ言語',
+        'translation_failed': '❌ メッセージを翻訳できませんでした。もう一度お試しください。',
+        'translation_failed_title': '翻訳失敗',
+        'translation_error': '❌ 翻訳中にエラーが発生しました：',
+        'translation_error_title': '翻訳エラー',
+        'original_message': '📝 元のメッセージ',
+        'to': 'へ'
+    },
+    'fr': {
+        'same_language': '⚠️ Ce message est déjà en français.',
+        'same_language_title': 'Même Langue',
+        'translation_failed': '❌ Impossible de traduire le message. Veuillez réessayer.',
+        'translation_failed_title': 'Échec de la Traduction',
+        'translation_error': '❌ Une erreur s\'est produite lors de la traduction :',
+        'translation_error_title': 'Erreur de Traduction',
+        'original_message': '📝 Message Original',
+        'to': 'en'
+    },
+    'ko': {
+        'same_language': '⚠️ 이 메시지는 이미 한국어입니다.',
+        'same_language_title': '같은 언어',
+        'translation_failed': '❌ 메시지를 번역할 수 없습니다. 다시 시도해주세요.',
+        'translation_failed_title': '번역 실패',
+        'translation_error': '❌ 번역 중 오류가 발생했습니다:',
+        'translation_error_title': '번역 오류',
+        'original_message': '📝 원본 메시지',
+        'to': '로'
+    },
+    'it': {
+        'same_language': '⚠️ Questo messaggio è già in italiano.',
+        'same_language_title': 'Stessa Lingua',
+        'translation_failed': '❌ Impossibile tradurre il messaggio. Riprova.',
+        'translation_failed_title': 'Traduzione Fallita',
+        'translation_error': '❌ Si è verificato un errore durante la traduzione:',
+        'translation_error_title': 'Errore di Traduzione',
+        'original_message': '📝 Messaggio Originale',
+        'to': 'in'
+    },
+    'zh-CN': {
+        'same_language': '⚠️ 此消息已经是中文。',
+        'same_language_title': '相同语言',
+        'translation_failed': '❌ 无法翻译消息。请重试。',
+        'translation_failed_title': '翻译失败',
+        'translation_error': '❌ 翻译时发生错误：',
+        'translation_error_title': '翻译错误',
+        'original_message': '📝 原始消息',
+        'to': '到'
+    }
+}
+
+def get_translation_message(lang_code: str, key: str) -> str:
+    """Get translated message for a specific language."""
+    if lang_code in TRANSLATION_MESSAGES and key in TRANSLATION_MESSAGES[lang_code]:
+        return TRANSLATION_MESSAGES[lang_code][key]
+    # Fallback to English
+    return TRANSLATION_MESSAGES['en'].get(key, '')
+
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -840,8 +931,8 @@ class TranslationLanguageView(discord.ui.View):
                 # Check if same language
                 if self.source_lang == target_lang:
                     emb = make_embed(
-                        title='Same Language',
-                        description=f'⚠️ The message is already in {lang_name}.',
+                        title=get_translation_message(target_lang, 'same_language_title'),
+                        description=get_translation_message(target_lang, 'same_language').replace('العربية', lang_name).replace('English', lang_name).replace('Türkçe', lang_name).replace('日本語', lang_name).replace('français', lang_name).replace('한국어', lang_name).replace('italiano', lang_name).replace('中文', lang_name),
                         color=discord.Color.orange()
                     )
                     await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -865,8 +956,8 @@ class TranslationLanguageView(discord.ui.View):
                 
                 if not translated:
                     emb = make_embed(
-                        title='Translation Failed',
-                        description='❌ Could not translate the message. Please try again.',
+                        title=get_translation_message(target_lang, 'translation_failed_title'),
+                        description=get_translation_message(target_lang, 'translation_failed'),
                         color=discord.Color.red()
                     )
                     await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -880,12 +971,12 @@ class TranslationLanguageView(discord.ui.View):
                 }.get(target_lang, '🌐')
                 
                 emb = make_embed(
-                    title=f'{flag_emoji} Translation to {lang_name}',
+                    title=f'{flag_emoji} {lang_name}',
                     description=f'━━━━━━━━━━━━━━━━━━━━━\n{translated}\n━━━━━━━━━━━━━━━━━━━━━',
                     color=discord.Color.blue()
                 )
                 emb.add_field(
-                    name='📝 Original Message',
+                    name=get_translation_message(target_lang, 'original_message'),
                     value=self.message_content[:1024] if len(self.message_content) <= 1024 else self.message_content[:1021] + '...',
                     inline=False
                 )
@@ -897,8 +988,8 @@ class TranslationLanguageView(discord.ui.View):
             except Exception as e:
                 logger.error(f"Error in translation button callback: {e}")
                 emb = make_embed(
-                    title='Error',
-                    description=f'❌ An error occurred during translation: {str(e)}',
+                    title=get_translation_message(target_lang, 'translation_error_title'),
+                    description=f'{get_translation_message(target_lang, "translation_error")} {str(e)}',
                     color=discord.Color.red()
                 )
                 await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1613,8 +1704,8 @@ async def translate_message_context(interaction: discord.Interaction, message: d
             # Check if same language
             if detected == target_lang:
                 emb = make_embed(
-                    title='Same Language',
-                    description=f'⚠️ This message is already in {lang_name}.',
+                    title=get_translation_message(target_lang, 'same_language_title'),
+                    description=get_translation_message(target_lang, 'same_language').replace('العربية', lang_name).replace('English', lang_name).replace('Türkçe', lang_name).replace('日本語', lang_name).replace('français', lang_name).replace('한국어', lang_name).replace('italiano', lang_name).replace('中文', lang_name),
                     color=discord.Color.orange()
                 )
                 await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1638,8 +1729,8 @@ async def translate_message_context(interaction: discord.Interaction, message: d
                 
                 if not translated:
                     emb = make_embed(
-                        title='Translation Failed',
-                        description='❌ Could not translate the message. Please try again.',
+                        title=get_translation_message(target_lang, 'translation_failed_title'),
+                        description=get_translation_message(target_lang, 'translation_failed'),
                         color=discord.Color.red()
                     )
                     await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1652,13 +1743,14 @@ async def translate_message_context(interaction: discord.Interaction, message: d
                     'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
                 }.get(target_lang, '🌐')
                 
+                to_word = get_translation_message(target_lang, 'to')
                 emb = make_embed(
-                    title=f'{flag_emoji} Translation to {lang_name}',
+                    title=f'{flag_emoji} {lang_name}',
                     description=f'━━━━━━━━━━━━━━━━━━━━━\n{translated}\n━━━━━━━━━━━━━━━━━━━━━',
                     color=discord.Color.blue()
                 )
                 emb.add_field(
-                    name='📝 Original Message',
+                    name=get_translation_message(target_lang, 'original_message'),
                     value=content[:1024] if len(content) <= 1024 else content[:1021] + '...',
                     inline=False
                 )
@@ -1670,8 +1762,8 @@ async def translate_message_context(interaction: discord.Interaction, message: d
             except Exception as e:
                 logger.error(f"Translation error: {e}")
                 emb = make_embed(
-                    title='Translation Error',
-                    description=f'❌ An error occurred: {str(e)}',
+                    title=get_translation_message(target_lang, 'translation_error_title'),
+                    description=f'{get_translation_message(target_lang, "translation_error")} {str(e)}',
                     color=discord.Color.red()
                 )
                 await interaction.response.send_message(embed=emb, ephemeral=True)
