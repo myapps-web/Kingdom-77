@@ -48,6 +48,8 @@ if os.path.dirname(__file__):
     ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
     ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
     ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
+    SERVERS_FILE = os.path.join(DATA_DIR, 'servers.json')
+    BOT_STATS_FILE = os.path.join(BASE_DIR, 'bot_stats.txt')
 else:
     DATA_DIR = 'data'
     CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
@@ -55,6 +57,8 @@ else:
     ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
     ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
     ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
+    SERVERS_FILE = os.path.join(DATA_DIR, 'servers.json')
+    BOT_STATS_FILE = 'bot_stats.txt'
 
 # Create data directory if it doesn't exist
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -338,6 +342,23 @@ def load_role_permissions() -> Dict[str, Dict[str, list]]:
         return {}
 
 
+def load_servers() -> Dict[str, dict]:
+    """Load server information from file.
+    Format: {'guild_id': {'name': 'Server Name', 'joined_at': 'ISO timestamp', 'active': True, 'left_at': None}}
+    """
+    try:
+        with open(SERVERS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            logger.info(f"Loaded {len(data)} server records from {SERVERS_FILE}")
+            return data
+    except FileNotFoundError:
+        logger.info(f"No servers.json found at {SERVERS_FILE}, starting fresh")
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading servers from {SERVERS_FILE}: {e}")
+        return {}
+
+
 # ============================================================================
 # DATA SAVING FUNCTIONS (ASYNC)
 # ============================================================================
@@ -457,6 +478,147 @@ async def save_role_permissions(data: Dict[str, Dict[str, list]]):
     await loop.run_in_executor(None, _write, data)
 
 
+async def save_servers(data: Dict[str, dict]):
+    """Asynchronously save server information to disk."""
+    loop = asyncio.get_running_loop()
+
+    def _write(d):
+        tmp = SERVERS_FILE + '.tmp'
+        try:
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(d, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, SERVERS_FILE)
+            logger.info(f"Saved {len(d)} server records to {SERVERS_FILE}")
+        except Exception as e:
+            logger.error(f"Error saving to {SERVERS_FILE}: {e}")
+            try:
+                with open(SERVERS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(d, f, ensure_ascii=False, indent=2)
+                logger.info(f"Fallback: Saved server records directly to {SERVERS_FILE}")
+            except Exception as e2:
+                logger.error(f"Fallback save also failed: {e2}")
+
+    await loop.run_in_executor(None, _write, data)
+
+
+def update_bot_stats():
+    """Update bot statistics text file with comprehensive information."""
+    try:
+        # Calculate statistics
+        total_servers = len(servers_data)
+        active_servers = sum(1 for s in servers_data.values() if s.get('active', False))
+        left_servers = total_servers - active_servers
+        
+        # Calculate ratings
+        total_raters = len(bot_ratings)
+        if total_raters > 0:
+            total_rating_sum = sum(r.get('rating', 0) for r in bot_ratings.values())
+            average_rating = total_rating_sum / total_raters
+        else:
+            average_rating = 0.0
+        
+        # Count ratings by value
+        rating_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for rating_data in bot_ratings.values():
+            rating = rating_data.get('rating', 0)
+            if rating in rating_counts:
+                rating_counts[rating] += 1
+        
+        # Count configured channels
+        configured_channels = len(channel_langs)
+        dual_lang_channels = sum(1 for c in channel_langs.values() if isinstance(c, dict) and c.get('secondary'))
+        
+        # Count roles
+        total_allowed_roles = sum(len(roles) for roles in allowed_roles.values())
+        
+        # Generate report
+        from datetime import datetime
+        current_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        
+        report = f"""
+╔═══════════════════════════════════════════════════════════════╗
+║              BOT STATISTICS REPORT                            ║
+║         Kingdom-77 Translation Bot                            ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📅 Last Updated: {current_time}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 SERVER STATISTICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Servers (All-Time):     {total_servers}
+├─ Active Servers:            {active_servers} ✅
+└─ Left Servers:              {left_servers} ❌
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⭐ RATING STATISTICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Raters:                 {total_raters}
+Average Rating:               {average_rating:.2f} / 5.00 ⭐
+
+Rating Distribution:
+  ⭐⭐⭐⭐⭐ (5 Stars):       {rating_counts[5]} users
+  ⭐⭐⭐⭐   (4 Stars):       {rating_counts[4]} users
+  ⭐⭐⭐     (3 Stars):       {rating_counts[3]} users
+  ⭐⭐       (2 Stars):       {rating_counts[2]} users
+  ⭐         (1 Star):        {rating_counts[1]} users
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌐 CHANNEL CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Configured Channels:          {configured_channels}
+├─ Single Language:           {configured_channels - dual_lang_channels}
+└─ Dual Language:             {dual_lang_channels} ↔️
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ ROLE PERMISSIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Allowed Roles:          {total_allowed_roles}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 DETAILED SERVER LIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
+        
+        # Add active servers
+        active_list = [s for s in servers_data.values() if s.get('active', False)]
+        if active_list:
+            report += "✅ ACTIVE SERVERS:\n\n"
+            for i, server in enumerate(sorted(active_list, key=lambda x: x.get('joined_at', '')), 1):
+                report += f"{i}. {server.get('name', 'Unknown')}\n"
+                report += f"   └─ Joined: {server.get('joined_at', 'Unknown')}\n"
+            report += "\n"
+        
+        # Add left servers
+        left_list = [s for s in servers_data.values() if not s.get('active', False)]
+        if left_list:
+            report += "❌ LEFT SERVERS:\n\n"
+            for i, server in enumerate(sorted(left_list, key=lambda x: x.get('left_at', '')), 1):
+                report += f"{i}. {server.get('name', 'Unknown')}\n"
+                report += f"   ├─ Joined: {server.get('joined_at', 'Unknown')}\n"
+                report += f"   └─ Left: {server.get('left_at', 'Unknown')}\n"
+            report += "\n"
+        
+        report += """━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 NOTE: This file is auto-generated and updates automatically.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+        
+        # Write to file
+        with open(BOT_STATS_FILE, 'w', encoding='utf-8') as f:
+            f.write(report)
+        
+        logger.info(f"Bot statistics updated: {active_servers} active, {left_servers} left, {total_raters} raters")
+    
+    except Exception as e:
+        logger.error(f"Error updating bot stats file: {e}")
+
+
 # ============================================================================
 # BOT INITIALIZATION
 # ============================================================================
@@ -472,6 +634,7 @@ bot_ratings = load_ratings()
 allowed_roles = load_allowed_roles()
 role_languages = load_role_languages()
 role_permissions = load_role_permissions()
+servers_data = load_servers()
 
 # Translation cache for faster responses
 translation_cache = {}  # {(text_hash, source_lang, target_lang): translated_text}
@@ -576,15 +739,41 @@ def has_specific_permission(member: discord.Member, guild_id: str, permission: s
 @bot.event
 async def on_ready():
     """Called when the bot is ready and connected to Discord."""
+    from datetime import datetime
+    
     logger.info(f"Logged in as {bot.user}")
     logger.info(f"Bot is in {len(bot.guilds)} server(s)")
     
     # Load data from files
-    global channel_langs, bot_ratings, allowed_roles
+    global channel_langs, bot_ratings, allowed_roles, servers_data
     loop = asyncio.get_event_loop()
     channel_langs = await loop.run_in_executor(None, load_channels)
     bot_ratings = await loop.run_in_executor(None, load_ratings)
     allowed_roles = await loop.run_in_executor(None, load_allowed_roles)
+    servers_data = await loop.run_in_executor(None, load_servers)
+    
+    # Update server tracking for current guilds
+    try:
+        for guild in bot.guilds:
+            guild_id = str(guild.id)
+            if guild_id not in servers_data:
+                # New server not yet tracked
+                servers_data[guild_id] = {
+                    'name': guild.name,
+                    'joined_at': datetime.utcnow().isoformat(),
+                    'active': True,
+                    'left_at': None
+                }
+            else:
+                # Update existing server to active
+                servers_data[guild_id]['active'] = True
+                servers_data[guild_id]['name'] = guild.name  # Update name in case it changed
+        
+        await save_servers(servers_data)
+        update_bot_stats()
+        logger.info(f"✅ Server tracking updated: {len([s for s in servers_data.values() if s.get('active')])} active servers")
+    except Exception as e:
+        logger.error(f"Error updating server tracking: {e}")
     
     # Log application commands
     try:
@@ -622,17 +811,52 @@ async def on_ready():
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
-    """Log when the bot joins a new server."""
+    """Log when the bot joins a new server and track it."""
+    from datetime import datetime
+    
     logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
+    
+    try:
+        guild_id = str(guild.id)
+        servers_data[guild_id] = {
+            'name': guild.name,
+            'joined_at': datetime.utcnow().isoformat(),
+            'active': True,
+            'left_at': None
+        }
+        await save_servers(servers_data)
+        update_bot_stats()
+        logger.info(f"✅ Recorded server join: {guild.name}")
+    except Exception as e:
+        logger.error(f"Error recording server join: {e}")
 
 
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
     """Log when the bot is removed from a server and clean up data."""
+    from datetime import datetime
+    
     logger.info(f"Removed from guild: {guild.name} (ID: {guild.id})")
     
     try:
         guild_id = str(guild.id)
+        
+        # Mark server as inactive
+        if guild_id in servers_data:
+            servers_data[guild_id]['active'] = False
+            servers_data[guild_id]['left_at'] = datetime.utcnow().isoformat()
+        else:
+            # If not tracked before, add it as left
+            servers_data[guild_id] = {
+                'name': guild.name,
+                'joined_at': 'Unknown',
+                'active': False,
+                'left_at': datetime.utcnow().isoformat()
+            }
+        
+        await save_servers(servers_data)
+        update_bot_stats()
+        
         channels_to_remove = []
         
         for ch_id in list(channel_langs.keys()):
@@ -1160,6 +1384,7 @@ class RatingView(discord.ui.View):
         }
         
         await save_ratings(bot_ratings)
+        update_bot_stats()  # Update stats file when rating changes
         
         star_text = "⭐" * stars
         action = "updated" if was_update else "submitted"
@@ -2147,6 +2372,97 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(embed=emb, ephemeral=False)
 
 
+@bot.tree.command(name='botstats', description='Display bot statistics and information')
+async def botstats(interaction: discord.Interaction):
+    """Show comprehensive bot statistics including servers and ratings."""
+    try:
+        # Calculate statistics
+        total_servers = len(servers_data)
+        active_servers = sum(1 for s in servers_data.values() if s.get('active', False))
+        left_servers = total_servers - active_servers
+        
+        # Current connected servers (might differ from tracked active servers)
+        connected_servers = len(bot.guilds)
+        total_members = sum(guild.member_count for guild in bot.guilds)
+        
+        # Calculate ratings
+        total_raters = len(bot_ratings)
+        if total_raters > 0:
+            total_rating_sum = sum(r.get('rating', 0) for r in bot_ratings.values())
+            average_rating = total_rating_sum / total_raters
+        else:
+            average_rating = 0.0
+        
+        # Count ratings by value
+        rating_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for rating_data in bot_ratings.values():
+            rating = rating_data.get('rating', 0)
+            if rating in rating_counts:
+                rating_counts[rating] += 1
+        
+        # Build star rating bar
+        if total_raters > 0:
+            stars_display = "⭐" * int(round(average_rating))
+            stars_display += "☆" * (5 - int(round(average_rating)))
+        else:
+            stars_display = "☆☆☆☆☆"
+        
+        # Count configured channels
+        configured_channels = len(channel_langs)
+        dual_lang_channels = sum(1 for c in channel_langs.values() if isinstance(c, dict) and c.get('secondary'))
+        
+        # Create embed
+        emb = make_embed(
+            title='📊 Bot Statistics',
+            color=discord.Color.blurple()
+        )
+        
+        # Server Statistics
+        server_stats = f"**Connected Now:** {connected_servers} servers\n"
+        server_stats += f"**Total Members:** {total_members:,} users\n"
+        server_stats += f"**All-Time Joins:** {total_servers} servers\n"
+        server_stats += f"├─ Currently Active: {active_servers} ✅\n"
+        server_stats += f"└─ Left Servers: {left_servers} ❌"
+        emb.add_field(name='🌐 Server Statistics', value=server_stats, inline=False)
+        
+        # Rating Statistics
+        rating_stats = f"**Average Rating:** {average_rating:.2f} / 5.00\n"
+        rating_stats += f"{stars_display}\n"
+        rating_stats += f"**Total Raters:** {total_raters} users\n\n"
+        rating_stats += f"⭐⭐⭐⭐⭐ {rating_counts[5]} • "
+        rating_stats += f"⭐⭐⭐⭐ {rating_counts[4]}\n"
+        rating_stats += f"⭐⭐⭐ {rating_counts[3]} • "
+        rating_stats += f"⭐⭐ {rating_counts[2]} • "
+        rating_stats += f"⭐ {rating_counts[1]}"
+        emb.add_field(name='⭐ Ratings', value=rating_stats, inline=False)
+        
+        # Channel Configuration
+        channel_stats = f"**Configured Channels:** {configured_channels}\n"
+        channel_stats += f"├─ Single Language: {configured_channels - dual_lang_channels}\n"
+        channel_stats += f"└─ Dual Language: {dual_lang_channels} ↔️"
+        emb.add_field(name='🌐 Channel Setup', value=channel_stats, inline=True)
+        
+        # Bot Info
+        latency_ms = round(bot.latency * 1000)
+        bot_info = f"**Latency:** {latency_ms} ms\n"
+        bot_info += f"**Uptime:** Since restart\n"
+        bot_info += f"**Version:** Kingdom-77 v2.0"
+        emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
+        
+        emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
+        
+        await interaction.response.send_message(embed=emb, ephemeral=False)
+        
+    except Exception as e:
+        logger.error(f"Error in botstats command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred while fetching statistics: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
 @bot.tree.command(name='help', description='Show all available commands')
 async def help(interaction: discord.Interaction):
     """Display help information with available commands."""
@@ -2167,6 +2483,7 @@ async def help(interaction: discord.Interaction):
         '**⭐ Bot Info:**',
         '`/rate` - Rate the bot',
         '`/ratings` - View ratings',
+        '`/botstats` - View bot statistics',
         '`/ping` - Check latency',
         '`/help` - Show this help'
     ]

@@ -23,7 +23,9 @@ data/ratings.json
 data/allowed_roles.json
 data/role_permissions.json
 data/role_languages.json
+data/servers.json
 channels.json
+bot_stats.txt
 
 # Logs
 logs/
