@@ -1,0 +1,14 @@
+{
+  "GUILD_ID": {
+    "ROLE_ID": [
+      "setlang",
+      "removelang",
+      "listchannels"
+    ],
+    "ANOTHER_ROLE_ID": [
+      "setrolelang",
+      "removerolelang",
+      "listrolelanguages"
+    ]
+  }
+}

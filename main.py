@@ -47,12 +47,14 @@ if os.path.dirname(__file__):
     RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
     ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
     ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
+    ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
 else:
     DATA_DIR = 'data'
     CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
     RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
     ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
     ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
+    ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
 
 # Create data directory if it doesn't exist
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -81,6 +83,46 @@ LANGUAGE_NAMES = {
     'sv': 'Swedish', 'da': 'Danish', 'fi': 'Finnish', 'no': 'Norwegian',
     'he': 'Hebrew', 'fa': 'Persian', 'sw': 'Swahili', 'so': 'Somali',
     'auto': 'Auto-detected'
+}
+
+# Bot permissions that can be assigned to roles
+BOT_PERMISSIONS = {
+    'setlang': {
+        'name': 'Set Channel Language',
+        'description': 'Can set default language for channels',
+        'emoji': '🌍',
+        'command': '/setlang'
+    },
+    'removelang': {
+        'name': 'Remove Channel Language',
+        'description': 'Can remove language settings from channels',
+        'emoji': '🗑️',
+        'command': '/removelang'
+    },
+    'listchannels': {
+        'name': 'View Channel Languages',
+        'description': 'Can view all channel language settings',
+        'emoji': '📋',
+        'command': '/listchannels'
+    },
+    'setrolelang': {
+        'name': 'Set Role Language',
+        'description': 'Can assign default languages to roles',
+        'emoji': '🎭',
+        'command': '/setrolelang'
+    },
+    'removerolelang': {
+        'name': 'Remove Role Language',
+        'description': 'Can remove language assignments from roles',
+        'emoji': '🗑️',
+        'command': '/removerolelang'
+    },
+    'listrolelanguages': {
+        'name': 'View Role Languages',
+        'description': 'Can view all role language assignments',
+        'emoji': '📜',
+        'command': '/listrolelanguages'
+    }
 }
 
 # Logging configuration
@@ -151,6 +193,23 @@ def load_role_languages() -> Dict[str, Dict[str, str]]:
         return {}
     except Exception as e:
         logger.error(f"Error loading role languages from {ROLE_LANGUAGES_FILE}: {e}")
+        return {}
+
+
+def load_role_permissions() -> Dict[str, Dict[str, list]]:
+    """Load role permissions from file.
+    Format: {'guild_id': {'role_id': ['permission1', 'permission2']}}
+    """
+    try:
+        with open(ROLE_PERMISSIONS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            logger.info(f"Loaded role permissions for {len(data)} guilds from {ROLE_PERMISSIONS_FILE}")
+            return data
+    except FileNotFoundError:
+        logger.info(f"No role_permissions.json found at {ROLE_PERMISSIONS_FILE}, starting fresh")
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading role permissions from {ROLE_PERMISSIONS_FILE}: {e}")
         return {}
 
 
@@ -250,6 +309,29 @@ async def save_role_languages(data: Dict[str, Dict[str, str]]):
     await loop.run_in_executor(None, _write, data)
 
 
+async def save_role_permissions(data: Dict[str, Dict[str, list]]):
+    """Asynchronously save role permissions to disk."""
+    loop = asyncio.get_running_loop()
+
+    def _write(d):
+        tmp = ROLE_PERMISSIONS_FILE + '.tmp'
+        try:
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(d, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, ROLE_PERMISSIONS_FILE)
+            logger.info(f"Saved role permissions for {len(d)} guilds to {ROLE_PERMISSIONS_FILE}")
+        except Exception as e:
+            logger.error(f"Error saving to {ROLE_PERMISSIONS_FILE}: {e}")
+            try:
+                with open(ROLE_PERMISSIONS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(d, f, ensure_ascii=False, indent=2)
+                logger.info(f"Fallback: Saved role permissions directly to {ROLE_PERMISSIONS_FILE}")
+            except Exception as e2:
+                logger.error(f"Fallback save also failed: {e2}")
+
+    await loop.run_in_executor(None, _write, data)
+
+
 # ============================================================================
 # BOT INITIALIZATION
 # ============================================================================
@@ -264,6 +346,7 @@ channel_langs = load_channels()
 bot_ratings = load_ratings()
 allowed_roles = load_allowed_roles()
 role_languages = load_role_languages()
+role_permissions = load_role_permissions()
 
 # Translation cache for faster responses
 translation_cache = {}  # {(text_hash, source_lang, target_lang): translated_text}
@@ -326,6 +409,29 @@ def has_permission(member: discord.Member, guild_id: str) -> bool:
     
     # Default: require manage_channels permission
     return member.guild_permissions.manage_channels
+
+
+def has_specific_permission(member: discord.Member, guild_id: str, permission: str) -> bool:
+    """Check if member has a specific bot permission.
+    
+    Permission is granted if:
+    1. Member is server owner (has all permissions)
+    2. Member has Administrator permission (has all permissions)
+    3. Member has a role with the specific permission assigned
+    """
+    # Server owner and administrators have all permissions
+    if member.guild.owner_id == member.id or member.guild_permissions.administrator:
+        return True
+    
+    # Check if member has a role with this specific permission
+    if guild_id in role_permissions:
+        member_role_ids = [str(role.id) for role in member.roles]
+        for role_id in member_role_ids:
+            if role_id in role_permissions[guild_id]:
+                if permission in role_permissions[guild_id][role_id]:
+                    return True
+    
+    return False
 
 
 # ============================================================================
@@ -569,6 +675,90 @@ class LanguageView(discord.ui.View):
         super().__init__()
         self.channel = channel
         self.add_item(LanguageSelect(SUPPORTED))
+
+
+class PermissionSelect(discord.ui.Select):
+    """Multi-select dropdown for choosing bot permissions."""
+    
+    def __init__(self):
+        options = []
+        for perm_key, perm_data in BOT_PERMISSIONS.items():
+            options.append(discord.SelectOption(
+                label=perm_data['name'],
+                value=perm_key,
+                description=perm_data['description'][:100],
+                emoji=perm_data['emoji']
+            ))
+        
+        super().__init__(
+            placeholder="Select permissions for this role...",
+            min_values=1,
+            max_values=len(options),
+            options=options,
+            custom_id="permission_select"
+        )
+    
+    async def callback(self, interaction: discord.Interaction):
+        # This will be handled by the parent View
+        await self.view.handle_permissions(interaction, self.values)
+
+
+class RolePermissionView(discord.ui.View):
+    """View for selecting permissions when adding a role."""
+    
+    def __init__(self, role: discord.Role, guild_id: str, role_id: str):
+        super().__init__(timeout=300)
+        self.role = role
+        self.guild_id = guild_id
+        self.role_id = role_id
+        self.selected_permissions = []
+        self.add_item(PermissionSelect())
+    
+    async def handle_permissions(self, interaction: discord.Interaction, permissions: list):
+        """Handle the permission selection."""
+        self.selected_permissions = permissions
+        
+        # Save to allowed_roles
+        if self.guild_id not in allowed_roles:
+            allowed_roles[self.guild_id] = []
+        
+        if self.role_id not in allowed_roles[self.guild_id]:
+            allowed_roles[self.guild_id].append(self.role_id)
+        
+        # Save permissions
+        if self.guild_id not in role_permissions:
+            role_permissions[self.guild_id] = {}
+        
+        role_permissions[self.guild_id][self.role_id] = permissions
+        
+        await save_allowed_roles(allowed_roles)
+        await save_role_permissions(role_permissions)
+        
+        # Create detailed embed
+        perm_list = []
+        for perm_key in permissions:
+            perm_data = BOT_PERMISSIONS[perm_key]
+            perm_list.append(f"{perm_data['emoji']} **{perm_data['name']}** - {perm_data['command']}")
+        
+        emb = make_embed(
+            title='Role Added Successfully ✅',
+            description=f'{self.role.mention} has been granted the selected permissions.',
+            color=discord.Color.green()
+        )
+        emb.add_field(
+            name=f'✨ Granted Permissions ({len(permissions)})',
+            value='\n'.join(perm_list),
+            inline=False
+        )
+        emb.add_field(
+            name='👥 Members Affected',
+            value=f'{len(self.role.members)} member(s) can now use these commands.',
+            inline=False
+        )
+        emb.set_footer(text=f'Use /removerole to revoke permissions • Use /addrole to modify')
+        
+        await interaction.response.edit_message(embed=emb, view=None)
+        logger.info(f"Role {self.role.name} added with permissions: {', '.join(permissions)}")
 
 
 class RatingView(discord.ui.View):
@@ -1524,13 +1714,13 @@ async def ratings(interaction: discord.Interaction):
 # SLASH COMMANDS - ROLE MANAGEMENT (ADMIN ONLY)
 # ============================================================================
 
-@bot.tree.command(name='addrole', description='Add a mentionable role that can manage language settings (Admin only)')
+@bot.tree.command(name='addrole', description='Add a mentionable role with custom permissions (Admin only)')
 @app_commands.describe(
-    role='Select a mentionable role to grant language management permissions'
+    role='Select a mentionable role to grant bot permissions'
 )
 @app_commands.autocomplete(role=mentionable_role_autocomplete)
 async def addrole(interaction: discord.Interaction, role: str):
-    """Add a role to the allowed roles list for language management. Only shows mentionable roles."""
+    """Add a role to the allowed roles list with custom permission selection."""
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -1574,39 +1764,61 @@ async def addrole(interaction: discord.Interaction, role: str):
         guild_id = str(interaction.guild.id)
         role_id = str(role_obj.id)
         
-        if guild_id not in allowed_roles:
-            allowed_roles[guild_id] = []
-        
-        if role_id in allowed_roles[guild_id]:
-            emb = make_embed(
-                title='Role Already Added',
-                description=f'⚠️ {role_obj.mention} is already in the allowed roles list.',
-                color=discord.Color.orange()
-            )
+        # Check if role already exists
+        if guild_id in allowed_roles and role_id in allowed_roles[guild_id]:
+            # Show current permissions
+            current_perms = role_permissions.get(guild_id, {}).get(role_id, [])
+            if current_perms:
+                perm_list = []
+                for perm_key in current_perms:
+                    perm_data = BOT_PERMISSIONS.get(perm_key, {'name': perm_key, 'emoji': '•', 'command': ''})
+                    perm_list.append(f"{perm_data['emoji']} {perm_data['name']}")
+                
+                emb = make_embed(
+                    title='Role Already Configured',
+                    description=f'{role_obj.mention} already has permissions assigned.\n\n**Current Permissions:**\n' + '\n'.join(perm_list),
+                    color=discord.Color.orange()
+                )
+                emb.set_footer(text='Use /removerole first to reconfigure')
+            else:
+                emb = make_embed(
+                    title='Role Already Added',
+                    description=f'⚠️ {role_obj.mention} is already in the allowed roles list.',
+                    color=discord.Color.orange()
+                )
             await interaction.response.send_message(embed=emb, ephemeral=True)
             return
         
-        allowed_roles[guild_id].append(role_id)
-        await save_allowed_roles(allowed_roles)
-        
-        # Get role permissions details
-        perm_details = []
-        if role_obj.permissions.administrator:
-            perm_details.append("• **Administrator** - Full server management")
-        
-        perm_details.extend([
-            "• Set channel languages (`/setlang`)",
-            "• Remove language settings (`/removelang`)",
-            "• View channel languages (`/listchannels`)"
-        ])
+        # Show permission selection view
+        view = RolePermissionView(role_obj, guild_id, role_id)
         
         emb = make_embed(
-            title='Role Added ✅',
-            description=f'Successfully added {role_obj.mention} to allowed roles.\n\n**Granted Permissions:**\n' + '\n'.join(perm_details) + '\n\n✅ Members with this role can now manage channel language settings.',
-            color=discord.Color.green()
+            title='🛡️ Select Permissions',
+            description=f'Choose which permissions to grant to {role_obj.mention}\n\n**Select one or more permissions below:**',
+            color=discord.Color.blurple()
         )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        logger.info(f"Role {role_obj.name} ({role_id}) added to allowed roles in guild {interaction.guild.name}")
+        
+        # Add description of each permission
+        perm_descriptions = []
+        for perm_key, perm_data in BOT_PERMISSIONS.items():
+            perm_descriptions.append(f"{perm_data['emoji']} **{perm_data['name']}**\n└ {perm_data['description']}")
+        
+        emb.add_field(
+            name='📋 Available Permissions',
+            value='\n\n'.join(perm_descriptions[:3]),
+            inline=False
+        )
+        if len(perm_descriptions) > 3:
+            emb.add_field(
+                name='',
+                value='\n\n'.join(perm_descriptions[3:]),
+                inline=False
+            )
+        
+        emb.set_footer(text=f'Members with this role: {len(role_obj.members)} • Timeout: 5 minutes')
+        
+        await interaction.response.send_message(embed=emb, view=view, ephemeral=True)
+        logger.info(f"Permission selection initiated for role {role_obj.name} in guild {interaction.guild.name}")
         
     except Exception as e:
         logger.error(f"Error in addrole command: {e}")
