@@ -504,6 +504,11 @@ async def save_servers(data: Dict[str, dict]):
 def update_bot_stats():
     """Update bot statistics text file with comprehensive information."""
     try:
+        # Ensure global variables are available
+        if 'servers_data' not in globals() or 'bot_ratings' not in globals():
+            logger.warning("Cannot update bot stats: data not yet loaded")
+            return
+        
         # Calculate statistics
         total_servers = len(servers_data)
         active_servers = sum(1 for s in servers_data.values() if s.get('active', False))
