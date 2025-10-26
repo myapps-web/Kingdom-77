@@ -242,13 +242,30 @@ logger = logging.getLogger(__name__)
 # DATA LOADING FUNCTIONS
 # ============================================================================
 
-def load_channels() -> Dict[str, str]:
-    """Load channel language configurations from file."""
+def load_channels() -> Dict[str, dict]:
+    """Load channel language configurations from file.
+    Format: {channel_id: {'primary': 'lang_code', 'secondary': 'lang_code'}}
+    Or legacy format: {channel_id: 'lang_code'} which gets converted.
+    """
     try:
         with open(CHANNELS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            logger.info(f"Loaded {len(data)} channel configurations from {CHANNELS_FILE}")
-            return data
+            # Convert legacy format (string) to new format (dict)
+            converted_data = {}
+            for channel_id, value in data.items():
+                if isinstance(value, str):
+                    # Legacy format: just a string language code
+                    converted_data[channel_id] = {'primary': value, 'secondary': None}
+                elif isinstance(value, dict):
+                    # New format: dict with primary and optional secondary
+                    converted_data[channel_id] = {
+                        'primary': value.get('primary'),
+                        'secondary': value.get('secondary')
+                    }
+                else:
+                    logger.warning(f"Unknown format for channel {channel_id}, skipping")
+            logger.info(f"Loaded {len(converted_data)} channel configurations from {CHANNELS_FILE}")
+            return converted_data
     except FileNotFoundError:
         logger.info(f"No channels.json found at {CHANNELS_FILE}, starting fresh")
         return {}
@@ -325,7 +342,7 @@ def load_role_permissions() -> Dict[str, Dict[str, list]]:
 # DATA SAVING FUNCTIONS (ASYNC)
 # ============================================================================
 
-async def save_channels(data: Dict[str, str]):
+async def save_channels(data: Dict[str, dict]):
     """Asynchronously save channel language configuration to disk."""
     loop = asyncio.get_running_loop()
 
@@ -634,18 +651,30 @@ async def on_guild_remove(guild: discord.Guild):
 
 @bot.event
 async def on_message(message: discord.Message):
-    """Handle message translation based on channel language settings."""
+    """Handle message translation based on channel language settings with dual language support."""
     # Ignore bots and webhooks
     if message.author.bot or message.webhook_id:
         return
 
     channel_id = str(message.channel.id)
-    target = channel_langs.get(channel_id)
-    if not target:
+    channel_config = channel_langs.get(channel_id)
+    if not channel_config:
         return
 
     content = message.content.strip()
     if not content:
+        return
+
+    # Extract primary and secondary languages
+    if isinstance(channel_config, dict):
+        primary_lang = channel_config.get('primary')
+        secondary_lang = channel_config.get('secondary')
+    else:
+        # Legacy support: if it's a string, treat it as primary only
+        primary_lang = channel_config
+        secondary_lang = None
+
+    if not primary_lang:
         return
 
     try:
@@ -654,15 +683,38 @@ async def on_message(message: discord.Message):
         logger.debug("Could not detect language")
         return
 
-    # Check if target language is supported
-    if target not in SUPPORTED:
-        logger.warning(f"Target language '{target}' not in SUPPORTED list")
+    # Check if languages are supported
+    if primary_lang not in SUPPORTED:
+        logger.warning(f"Primary language '{primary_lang}' not in SUPPORTED list")
         return
+    
+    if secondary_lang and secondary_lang not in SUPPORTED:
+        logger.warning(f"Secondary language '{secondary_lang}' not in SUPPORTED list")
+        secondary_lang = None
 
-    # Only translate if detected language is different from target
-    if detected == target:
-        logger.debug(f"Message already in target language ({target}), skipping")
-        return
+    # Determine target language based on detected language
+    target = None
+    
+    if secondary_lang:
+        # Dual language mode: bidirectional translation
+        if detected == primary_lang:
+            # Message is in primary → translate to secondary
+            target = secondary_lang
+            logger.debug(f"Detected primary language ({primary_lang}), translating to secondary ({secondary_lang})")
+        elif detected == secondary_lang:
+            # Message is in secondary → translate to primary
+            target = primary_lang
+            logger.debug(f"Detected secondary language ({secondary_lang}), translating to primary ({primary_lang})")
+        else:
+            # Message is in another language → translate to primary (default)
+            target = primary_lang
+            logger.debug(f"Detected other language ({detected}), translating to primary ({primary_lang})")
+    else:
+        # Single language mode: translate everything to primary
+        if detected == primary_lang:
+            logger.debug(f"Message already in target language ({primary_lang}), skipping")
+            return
+        target = primary_lang
 
     # Create cache key (using hash to handle long messages)
     cache_key = (hash(content), detected, target)
@@ -706,7 +758,7 @@ async def on_message(message: discord.Message):
         except Exception:
             pass
         await message.reply(embed=emb, mention_author=False)
-        logger.info(f"Detected '{detected}' message in '{target}' channel → Translated to {SUPPORTED.get(target, target)}")
+        logger.info(f"Detected '{detected}' message in channel with primary='{primary_lang}' secondary='{secondary_lang}' → Translated to {SUPPORTED.get(target, target)}")
     else:
         logger.debug(f"Translation result is same as original, skipping")
         
@@ -721,6 +773,212 @@ async def on_message(message: discord.Message):
 # UI COMPONENTS
 # ============================================================================
 
+class PrimaryLanguageSelect(discord.ui.Select):
+    """Dropdown menu for selecting primary language."""
+    
+    def __init__(self, supported_langs):
+        options = [
+            discord.SelectOption(
+                label=f"{name} ({code})",
+                value=code,
+                description=f"Set primary language to {name}"
+            ) for code, name in supported_langs.items()
+        ]
+        super().__init__(
+            placeholder="Choose primary language...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id="primary_lang_select"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        guild_id = str(interaction.guild.id)
+        if not has_permission(interaction.user, guild_id):
+            emb = make_embed(
+                title='Permission Denied',
+                description='⚠️ You need proper permissions to use this command.\n\nRequired: Server Owner, Administrator, or an allowed role.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        try:
+            code = self.values[0]
+            self.view.primary_lang = code
+            
+            # Update the embed to show selection
+            emb = make_embed(
+                title='Set Languages',
+                description=f'✅ **Primary Language:** {SUPPORTED[code]} ({code})\n\n' +
+                           '➡️ Now select a **secondary language** (optional).\n' +
+                           'Or click **Save** to save with primary language only.',
+                color=discord.Color.blurple()
+            )
+            await interaction.response.edit_message(embed=emb, view=self.view)
+        except Exception as e:
+            logger.error(f"Error in PrimaryLanguageSelect callback: {e}")
+            emb = make_embed(
+                title='Error',
+                description=f'❌ Failed to select language: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+class SecondaryLanguageSelect(discord.ui.Select):
+    """Dropdown menu for selecting secondary language."""
+    
+    def __init__(self, supported_langs):
+        options = [
+            discord.SelectOption(
+                label=f"{name} ({code})",
+                value=code,
+                description=f"Set secondary language to {name}"
+            ) for code, name in supported_langs.items()
+        ]
+        super().__init__(
+            placeholder="Choose secondary language (optional)...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id="secondary_lang_select"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        guild_id = str(interaction.guild.id)
+        if not has_permission(interaction.user, guild_id):
+            emb = make_embed(
+                title='Permission Denied',
+                description='⚠️ You need proper permissions to use this command.\n\nRequired: Server Owner, Administrator, or an allowed role.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        try:
+            code = self.values[0]
+            
+            # Check if secondary is same as primary
+            if self.view.primary_lang and code == self.view.primary_lang:
+                emb = make_embed(
+                    title='Invalid Selection',
+                    description='⚠️ Secondary language cannot be the same as primary language.\nPlease choose a different language.',
+                    color=discord.Color.orange()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+            
+            self.view.secondary_lang = code
+            
+            # Update the embed to show both selections
+            primary_text = f'{SUPPORTED[self.view.primary_lang]} ({self.view.primary_lang})' if self.view.primary_lang else 'Not selected'
+            emb = make_embed(
+                title='Set Languages',
+                description=f'✅ **Primary Language:** {primary_text}\n' +
+                           f'✅ **Secondary Language:** {SUPPORTED[code]} ({code})\n\n' +
+                           '➡️ Click **Save** to confirm.',
+                color=discord.Color.blurple()
+            )
+            await interaction.response.edit_message(embed=emb, view=self.view)
+        except Exception as e:
+            logger.error(f"Error in SecondaryLanguageSelect callback: {e}")
+            emb = make_embed(
+                title='Error',
+                description=f'❌ Failed to select language: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+class DualLanguageView(discord.ui.View):
+    """View containing dual language selection dropdowns and save button."""
+    
+    def __init__(self, channel):
+        super().__init__(timeout=180)
+        self.channel = channel
+        self.primary_lang = None
+        self.secondary_lang = None
+        self.add_item(PrimaryLanguageSelect(SUPPORTED))
+        self.add_item(SecondaryLanguageSelect(SUPPORTED))
+    
+    @discord.ui.button(label='Save', style=discord.ButtonStyle.green, emoji='💾', custom_id='save_languages')
+    async def save_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild_id = str(interaction.guild.id)
+        if not has_permission(interaction.user, guild_id):
+            emb = make_embed(
+                title='Permission Denied',
+                description='⚠️ You need proper permissions to use this command.\n\nRequired: Server Owner, Administrator, or an allowed role.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        if not self.primary_lang:
+            emb = make_embed(
+                title='No Selection',
+                description='⚠️ Please select at least a primary language before saving.',
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        try:
+            channel_id = str(self.channel.id)
+            channel_langs[channel_id] = {
+                'primary': self.primary_lang,
+                'secondary': self.secondary_lang
+            }
+            await save_channels(channel_langs)
+            
+            # Build success message
+            primary_name = SUPPORTED[self.primary_lang]
+            description = f'✅ Channel {self.channel.mention} configured successfully!\n\n'
+            description += f'**Primary Language:** {primary_name} ({self.primary_lang})\n'
+            
+            if self.secondary_lang:
+                secondary_name = SUPPORTED[self.secondary_lang]
+                description += f'**Secondary Language:** {secondary_name} ({self.secondary_lang})\n\n'
+                description += f'📌 Messages in **{primary_name}** will be translated to **{secondary_name}**\n'
+                description += f'📌 Messages in **{secondary_name}** will be translated to **{primary_name}**\n'
+                description += f'📌 Messages in other languages will be translated to **{primary_name}** (primary)'
+            else:
+                description += f'\n📌 All messages will be translated to **{primary_name}**'
+            
+            emb = make_embed(
+                title='Languages Set',
+                description=description,
+                color=discord.Color.green()
+            )
+            
+            # Disable all components
+            for item in self.children:
+                item.disabled = True
+            
+            await interaction.response.edit_message(embed=emb, view=self)
+        except Exception as e:
+            logger.error(f"Error saving languages: {e}")
+            emb = make_embed(
+                title='Error',
+                description=f'❌ Failed to save languages: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+    
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.grey, emoji='❌', custom_id='cancel_languages')
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        emb = make_embed(
+            title='Cancelled',
+            description='❌ Language setup cancelled.',
+            color=discord.Color.red()
+        )
+        # Disable all components
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(embed=emb, view=self)
+
+
+# Legacy single language view (kept for compatibility)
 class LanguageSelect(discord.ui.Select):
     """Dropdown menu for selecting a language."""
     
@@ -753,7 +1011,7 @@ class LanguageSelect(discord.ui.Select):
         try:
             code = self.values[0]
             channel_id = str(self.view.channel.id)
-            channel_langs[channel_id] = code
+            channel_langs[channel_id] = {'primary': code, 'secondary': None}
             await save_channels(channel_langs)
             emb = make_embed(
                 title='Language set',
@@ -772,7 +1030,7 @@ class LanguageSelect(discord.ui.Select):
 
 
 class LanguageView(discord.ui.View):
-    """View containing the language selection dropdown."""
+    """View containing the language selection dropdown (legacy compatibility)."""
     
     def __init__(self, channel):
         super().__init__()
@@ -1506,13 +1764,37 @@ class UnifiedListView(discord.ui.View):
             for channel in guild.text_channels:
                 channel_id = str(channel.id)
                 if channel_id in channel_langs:
-                    lang_code = channel_langs[channel_id]
-                    lang_name = SUPPORTED.get(lang_code, lang_code)
+                    channel_config = channel_langs[channel_id]
+                    
+                    # Handle both old (string) and new (dict) formats
+                    if isinstance(channel_config, dict):
+                        primary_lang = channel_config.get('primary')
+                        secondary_lang = channel_config.get('secondary')
+                    else:
+                        primary_lang = channel_config
+                        secondary_lang = None
+                    
+                    # Get language names
+                    primary_name = SUPPORTED.get(primary_lang, primary_lang) if primary_lang else 'Unknown'
+                    
+                    # Flag emojis
                     flag_emoji = {
                         'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
                         'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
-                    }.get(lang_code, '🌐')
-                    channels_list.append(f"{flag_emoji} {channel.mention} → **{lang_name}** (`{lang_code}`)")
+                    }.get(primary_lang, '🌐')
+                    
+                    # Build display text
+                    if secondary_lang:
+                        secondary_name = SUPPORTED.get(secondary_lang, secondary_lang)
+                        secondary_flag = {
+                            'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                            'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '�🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+                        }.get(secondary_lang, '�🌐')
+                        channels_list.append(
+                            f"{flag_emoji} {channel.mention} → **{primary_name}** (`{primary_lang}`) ↔️ {secondary_flag} **{secondary_name}** (`{secondary_lang}`)"
+                        )
+                    else:
+                        channels_list.append(f"{flag_emoji} {channel.mention} → **{primary_name}** (`{primary_lang}`)")
         else:
             channels_list = []
             for channel in guild.text_channels:
@@ -1537,7 +1819,7 @@ class UnifiedListView(discord.ui.View):
         else:
             emb.description = f'❌ No {filter_label.lower()} channels found.'
         
-        emb.set_footer(text=f'Page {self.page + 1}/{total_pages} • Total: {len(channels_list)} channels • Use /channel addlang to configure')
+        emb.set_footer(text=f'Page {self.page + 1}/{total_pages} • Total: {len(channels_list)} channels • ↔️ = Bidirectional translation')
         return emb
     
     def get_languages_embed(self) -> discord.Embed:
@@ -2076,10 +2358,19 @@ async def channel_setlang(interaction: discord.Interaction, channel: str = None)
         else:
             target_channel = interaction.channel
         
-        view = LanguageView(target_channel)
+        # Use the new dual language view
+        view = DualLanguageView(target_channel)
         emb = make_embed(
-            title='Set Language',
-            description=f'Please select a language for {target_channel.mention}:',
+            title='Set Languages',
+            description=f'Configure language settings for {target_channel.mention}:\n\n' +
+                       '**1️⃣ Primary Language** (Required)\n' +
+                       'Main language for translation.\n\n' +
+                       '**2️⃣ Secondary Language** (Optional)\n' +
+                       'Enable bidirectional translation between two languages.\n\n' +
+                       '📝 **How it works:**\n' +
+                       '• With only primary: All messages → Primary language\n' +
+                       '• With both: Messages swap between the two languages\n' +
+                       '• Other languages → Always translate to primary',
             color=discord.Color.blurple()
         )
         await interaction.response.send_message(embed=emb, view=view, ephemeral=True)
