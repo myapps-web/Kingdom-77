@@ -1599,12 +1599,47 @@ async def translate_message_context(interaction: discord.Interaction, message: d
 
 @bot.tree.command(name='ping', description='Check if the bot is responsive')
 async def ping(interaction: discord.Interaction):
-    """Check bot responsiveness and latency."""
+    """Check bot responsiveness and latency with visual indicators."""
     ws_ms = round(bot.latency * 1000)
-    color = _choose_latency_color(ws_ms)
-    emoji = "🟢" if ws_ms < 100 else ("🟡" if ws_ms < 250 else "🔴")
-    emb = make_embed(title=f"Pong! {emoji} ❄️", description=f"WebSocket latency: **{ws_ms} ms**", color=color)
-    emb.set_footer(text="Latency may vary. Measures websocket heartbeat latency.")
+    
+    # Determine emoji and status based on latency ranges
+    if ws_ms < 50:
+        emoji = "❄️"  # Excellent - Frozen fast
+        status = "**ممتاز - سريع جداً**"
+        status_en = "Excellent - Lightning Fast"
+        color = discord.Color.blue()
+    elif ws_ms < 100:
+        emoji = "⚡"  # Great - Very fast
+        status = "**رائع - سريع**"
+        status_en = "Great - Very Fast"
+        color = discord.Color.green()
+    elif ws_ms < 200:
+        emoji = "✅"  # Good - Fast
+        status = "**جيد - طبيعي**"
+        status_en = "Good - Normal"
+        color = discord.Color.brand_green()
+    elif ws_ms < 300:
+        emoji = "⚠️"  # Fair - Slow
+        status = "**مقبول - بطيء قليلاً**"
+        status_en = "Fair - Slightly Slow"
+        color = discord.Color.gold()
+    elif ws_ms < 500:
+        emoji = "🔥"  # Poor - Very slow
+        status = "**ضعيف - بطيء**"
+        status_en = "Poor - Slow"
+        color = discord.Color.orange()
+    else:
+        emoji = "�"  # Critical - Extremely slow
+        status = "**حرج - بطيء جداً**"
+        status_en = "Critical - Very Slow"
+        color = discord.Color.red()
+    
+    emb = make_embed(
+        title=f"Pong! {emoji}",
+        description=f"{status}\n{status_en}\n\n📡 **WebSocket Latency:** {ws_ms} ms",
+        color=color
+    )
+    emb.set_footer(text="Latency may vary • Measures websocket heartbeat latency")
     await interaction.response.send_message(embed=emb, ephemeral=False)
 
 
