@@ -1179,6 +1179,261 @@ async def allowed_role_autocomplete(
     return role_choices
 
 
+class UnifiedListView(discord.ui.View):
+    """Unified view for all list commands with tab navigation."""
+    
+    def __init__(self, interaction: discord.Interaction):
+        super().__init__(timeout=300)
+        self.interaction = interaction
+        self.current_tab = 'channels'  # channels, languages, roles, role_languages
+        self.channel_page = 0
+        self.items_per_page = 10
+        self.update_buttons()
+    
+    def update_buttons(self):
+        """Update button states based on current tab."""
+        self.clear_items()
+        
+        # Tab buttons
+        self.add_item(discord.ui.Button(
+            label="📋 Channels",
+            style=discord.ButtonStyle.primary if self.current_tab == 'channels' else discord.ButtonStyle.secondary,
+            custom_id="tab_channels",
+            row=0
+        ))
+        self.add_item(discord.ui.Button(
+            label="🌐 Languages",
+            style=discord.ButtonStyle.primary if self.current_tab == 'languages' else discord.ButtonStyle.secondary,
+            custom_id="tab_languages",
+            row=0
+        ))
+        self.add_item(discord.ui.Button(
+            label="🛡️ Roles",
+            style=discord.ButtonStyle.primary if self.current_tab == 'roles' else discord.ButtonStyle.secondary,
+            custom_id="tab_roles",
+            row=0
+        ))
+        self.add_item(discord.ui.Button(
+            label="🎭 Role Languages",
+            style=discord.ButtonStyle.primary if self.current_tab == 'role_languages' else discord.ButtonStyle.secondary,
+            custom_id="tab_role_languages",
+            row=0
+        ))
+        
+        # Get actual buttons and set callbacks
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                if item.custom_id == "tab_channels":
+                    item.callback = self.show_channels
+                elif item.custom_id == "tab_languages":
+                    item.callback = self.show_languages
+                elif item.custom_id == "tab_roles":
+                    item.callback = self.show_roles
+                elif item.custom_id == "tab_role_languages":
+                    item.callback = self.show_role_languages
+    
+    async def show_channels(self, interaction: discord.Interaction):
+        """Show channels tab."""
+        self.current_tab = 'channels'
+        self.update_buttons()
+        embed = self.get_channels_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def show_languages(self, interaction: discord.Interaction):
+        """Show languages tab."""
+        self.current_tab = 'languages'
+        self.update_buttons()
+        embed = self.get_languages_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def show_roles(self, interaction: discord.Interaction):
+        """Show roles tab."""
+        self.current_tab = 'roles'
+        self.update_buttons()
+        embed = self.get_roles_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def show_role_languages(self, interaction: discord.Interaction):
+        """Show role languages tab."""
+        self.current_tab = 'role_languages'
+        self.update_buttons()
+        embed = self.get_role_languages_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    def get_channels_embed(self) -> discord.Embed:
+        """Generate channels list embed."""
+        guild = self.interaction.guild
+        guild_id = str(guild.id)
+        
+        configured = []
+        unconfigured = []
+        
+        for channel in guild.text_channels:
+            channel_id = str(channel.id)
+            if channel_id in channel_langs:
+                lang_code = channel_langs[channel_id]
+                lang_name = SUPPORTED.get(lang_code, lang_code)
+                flag_emoji = {
+                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+                }.get(lang_code, '🌐')
+                configured.append(f"{flag_emoji} {channel.mention} → **{lang_name}**")
+            else:
+                unconfigured.append(f"⚪ {channel.mention}")
+        
+        emb = make_embed(
+            title='📋 Channel Language Settings',
+            color=discord.Color.blurple()
+        )
+        
+        if configured:
+            emb.add_field(
+                name=f'✅ Configured Channels ({len(configured)})',
+                value='\n'.join(configured[:10]) + (f'\n*...and {len(configured) - 10} more*' if len(configured) > 10 else ''),
+                inline=False
+            )
+        
+        if unconfigured:
+            emb.add_field(
+                name=f'⚪ Unconfigured Channels ({len(unconfigured)})',
+                value='\n'.join(unconfigured[:5]) + (f'\n*...and {len(unconfigured) - 5} more*' if len(unconfigured) > 5 else ''),
+                inline=False
+            )
+        
+        if not configured and not unconfigured:
+            emb.description = '❌ No text channels found in this server.'
+        
+        emb.set_footer(text=f'💡 Use /setlang to configure channel languages')
+        return emb
+    
+    def get_languages_embed(self) -> discord.Embed:
+        """Generate supported languages embed."""
+        emb = make_embed(
+            title='🌐 Supported Languages',
+            description='**Primary Translation Languages:**',
+            color=discord.Color.green()
+        )
+        
+        primary_langs = []
+        for code, name in SUPPORTED.items():
+            flag_emoji = {
+                'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+            }.get(code, '🌐')
+            primary_langs.append(f"{flag_emoji} **{name}** (`{code}`)")
+        
+        emb.add_field(
+            name=f'✨ Available for Translation ({len(SUPPORTED)})',
+            value='\n'.join(primary_langs),
+            inline=False
+        )
+        
+        # Additional detection languages
+        additional_count = len(LANGUAGE_NAMES) - len(SUPPORTED)
+        emb.add_field(
+            name=f'🔍 Detection Support',
+            value=f'Plus **{additional_count}** additional languages for detection\n└ Spanish, German, Portuguese, Russian, Hindi, and more!',
+            inline=False
+        )
+        
+        emb.set_footer(text=f'Total: {len(LANGUAGE_NAMES)} languages supported for detection')
+        return emb
+    
+    def get_roles_embed(self) -> discord.Embed:
+        """Generate roles list embed."""
+        guild = self.interaction.guild
+        guild_id = str(guild.id)
+        
+        emb = make_embed(
+            title='🛡️ Language Management Permissions',
+            color=discord.Color.gold()
+        )
+        
+        if guild_id not in allowed_roles or not allowed_roles[guild_id]:
+            emb.description = '**No custom roles configured.**\n\n✅ Server Owner and Administrators have full access by default.\n\n💡 Use `/addrole` to grant permissions to specific roles.'
+        else:
+            role_list = []
+            for role_id in allowed_roles[guild_id]:
+                role = guild.get_role(int(role_id))
+                if role:
+                    # Get permissions for this role
+                    perms = role_permissions.get(guild_id, {}).get(role_id, [])
+                    perm_count = len(perms) if perms else 'All'
+                    badge = '🔒' if role.permissions.administrator else '✅'
+                    role_list.append(f'{badge} {role.mention} — **{perm_count}** permissions')
+                else:
+                    role_list.append(f'❌ ~~Deleted Role~~ (ID: {role_id})')
+            
+            emb.add_field(
+                name=f'📋 Allowed Roles ({len(allowed_roles[guild_id])})',
+                value='\n'.join(role_list),
+                inline=False
+            )
+            
+            emb.add_field(
+                name='🔐 Built-in Access',
+                value='• 👑 Server Owner — Full control\n• 🛡️ Administrators — Full control',
+                inline=False
+            )
+        
+        emb.set_footer(text='💡 Use /addrole or /removerole to manage permissions')
+        return emb
+    
+    def get_role_languages_embed(self) -> discord.Embed:
+        """Generate role languages embed."""
+        guild = self.interaction.guild
+        guild_id = str(guild.id)
+        
+        emb = make_embed(
+            title='🎭 Role Language Assignments',
+            color=discord.Color.purple()
+        )
+        
+        if guild_id not in role_languages or not role_languages[guild_id]:
+            emb.description = '**No role language assignments yet.**\n\n**How to set up:**\n1. Use `/setrolelang` to assign languages to roles\n2. Members with those roles can right-click messages\n3. Select "Translate Message" to translate instantly\n\n💡 **Example:** Assign English to @English-Speakers role'
+        else:
+            role_list = []
+            for role_id, lang_code in role_languages[guild_id].items():
+                role = guild.get_role(int(role_id))
+                lang_name = SUPPORTED.get(lang_code, lang_code)
+                flag_emoji = {
+                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+                }.get(lang_code, '🌐')
+                
+                if role:
+                    member_count = len(role.members)
+                    role_list.append(f'{flag_emoji} {role.mention} → **{lang_name}** ({member_count} members)')
+                else:
+                    role_list.append(f'{flag_emoji} ~~Deleted Role~~ (ID: {role_id}) → **{lang_name}**')
+            
+            emb.add_field(
+                name=f'✨ Configured Roles ({len(role_languages[guild_id])})',
+                value='\n'.join(role_list),
+                inline=False
+            )
+            
+            emb.add_field(
+                name='🖱️ How it works',
+                value='✅ Right-click any message\n✅ Select "Translate Message"\n✅ Instant translation to your role language',
+                inline=False
+            )
+        
+        emb.set_footer(text='💡 Use /setrolelang to assign role languages')
+        return emb
+    
+    def get_initial_embed(self) -> discord.Embed:
+        """Get initial embed based on current tab."""
+        if self.current_tab == 'channels':
+            return self.get_channels_embed()
+        elif self.current_tab == 'languages':
+            return self.get_languages_embed()
+        elif self.current_tab == 'roles':
+            return self.get_roles_embed()
+        else:
+            return self.get_role_languages_embed()
+
+
 # ============================================================================
 # CONTEXT MENU COMMANDS
 # ============================================================================
@@ -1352,6 +1607,7 @@ async def help(interaction: discord.Interaction):
         '**Language Management:**',
         '`/setlang [channel]` - Set default language for a channel',
         '`/removelang [channel]` - Remove language setting for a channel',
+        '`/list` - Browse all lists in unified view with tabs',
         '`/listchannels` - List all channels with their language settings',
         '`/listlangs` - List all supported languages',
         '',
@@ -1441,6 +1697,30 @@ async def debug_info(interaction: discord.Interaction):
         
     except Exception as e:
         logger.error(f"Error in debug command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+# ============================================================================
+# SLASH COMMANDS - UNIFIED LIST
+# ============================================================================
+
+@bot.tree.command(name='list', description='Browse all bot lists in one unified view')
+async def list_command(interaction: discord.Interaction):
+    """Unified command to view all lists with tab navigation."""
+    try:
+        view = UnifiedListView(interaction)
+        embed = view.get_initial_embed()
+        
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        logger.info(f"User {interaction.user} opened unified list view")
+        
+    except Exception as e:
+        logger.error(f"Error in list command: {e}")
         emb = make_embed(
             title='Error',
             description=f'❌ An error occurred: {str(e)}',
