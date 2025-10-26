@@ -1767,11 +1767,7 @@ async def help(interaction: discord.Interaction):
         '`/channel deletelang [channel]` - Remove language setting',
         '',
         '**👁️ View Commands** (`/view`)',
-        '`/view all` - Browse everything in tabbed view',
-        '`/view channels` - List channel language settings',
-        '`/view languages` - List supported languages',
-        '`/view roles` - List roles with permissions',
-        '`/view rolelanguages` - List role language assignments',
+        '`/view lists` - Browse all information with filters',
         '',
         '**🖱️ Context Menu:**',
         '`Right-click message → Translate Message`',
@@ -1907,8 +1903,8 @@ async def sync_commands(interaction: discord.Interaction):
 # SLASH COMMANDS - VIEW/LIST (GROUP)
 # ============================================================================
 
-@view_group.command(name='all', description='Browse all bot information in unified tabbed view')
-async def view_all(interaction: discord.Interaction):
+@view_group.command(name='lists', description='Browse all bot information with filters and pagination')
+async def view_lists(interaction: discord.Interaction):
     """Unified command to view all lists with tab navigation, filters, and pagination."""
     try:
         view = UnifiedListView(interaction)
@@ -1988,58 +1984,10 @@ async def channel_setlang(interaction: discord.Interaction, channel: str = None)
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@view_group.command(name='languages', description='List all supported translation languages')
-async def view_languages(interaction: discord.Interaction):
-    """List all supported languages."""
-    lang_list = [f'• **{name}** (`{code}`)' for code, name in SUPPORTED.items()]
-    desc = '**Supported Languages:**\n\n' + '\n'.join(lang_list)
-    desc += '\n\nUse `/channel addlang` to configure a channel.'
-    
-    emb = make_embed(title='Supported Languages', description=desc)
-    await interaction.response.send_message(embed=emb, ephemeral=True)
 
-
-@view_group.command(name='channels', description='List all channels with language settings')
-async def view_channels(interaction: discord.Interaction):
-    """List all channels with pagination."""
-    if not interaction.guild:
-        emb = make_embed(
-            title='Error',
-            description='This command can only be used in a server.',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        return
-
-    try:
-        channels = interaction.guild.channels
-        
-        configured_channels = []
-        unconfigured_channels = []
-        
-        for channel in channels:
-            if isinstance(channel, (discord.TextChannel, discord.VoiceChannel, discord.ForumChannel)):
-                channel_id = str(channel.id)
-                if channel_id in channel_langs:
-                    lang_code = channel_langs[channel_id]
-                    lang_name = SUPPORTED.get(lang_code, 'Unknown')
-                    configured_channels.append(f'{channel.mention}: {lang_name} ({lang_code})')
-                else:
-                    unconfigured_channels.append(f'{channel.mention}: No language set')
-        
-        view = ChannelListView(configured_channels, unconfigured_channels, interaction.guild.name)
-        emb = view.get_embed()
-        
-        await interaction.response.send_message(embed=emb, view=view, ephemeral=True)
-    except Exception as e:
-        logger.error(f"Error in listchannels command: {e}")
-        emb = make_embed(
-            title='Error',
-            description=f'❌ An error occurred: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-
+# ============================================================================
+# SLASH COMMANDS - CHANNEL LANGUAGE MANAGEMENT (GROUP)
+# ============================================================================
 
 @channel_group.command(name='deletelang', description='Delete language setting from a channel')
 @app_commands.describe(
@@ -2414,60 +2362,10 @@ async def role_remove(interaction: discord.Interaction, role: str):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@view_group.command(name='roles', description='List roles with bot permissions')
-async def view_roles(interaction: discord.Interaction):
-    """List all allowed roles for the current guild with their permission details."""
-    try:
-        guild_id = str(interaction.guild.id)
-        
-        if guild_id not in allowed_roles or not allowed_roles[guild_id]:
-            emb = make_embed(
-                title='Allowed Roles 📋',
-                description='No custom roles configured for language management.\n\n**Default Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control\n\n💡 Use `/role perms` to grant language management permissions to specific roles.',
-                color=discord.Color.blurple()
-            )
-            await interaction.response.send_message(embed=emb, ephemeral=True)
-            return
-        
-        # Build role list with permission details
-        role_list = []
-        for role_id in allowed_roles[guild_id]:
-            role = interaction.guild.get_role(int(role_id))
-            if role:
-                # Determine permission level
-                if role.permissions.administrator:
-                    perm_badge = "🛡️ Admin"
-                elif role.permissions.manage_channels:
-                    perm_badge = "⚙️ Manage Channels"
-                else:
-                    perm_badge = "🌐 Language Manager"
-                
-                role_list.append(f'• {role.mention} **{perm_badge}**')
-            else:
-                role_list.append(f'• ~~Deleted Role~~ (ID: {role_id})')
-        
-        description = '**Roles with language management permissions:**\n\n' + '\n'.join(role_list)
-        description += '\n\n**Built-in Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control'
-        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/channel addlang`)\n✅ Remove language settings (`/channel deletelang`)\n✅ View language settings (`/view channels`)'
-        
-        emb = make_embed(
-            title='Allowed Roles 📋',
-            description=description,
-            color=discord.Color.blurple()
-        )
-        emb.set_footer(text=f"Total custom roles: {len(allowed_roles[guild_id])} • Use /role perms or /role editperms to manage")
-        
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        
-    except Exception as e:
-        logger.error(f"Error in listroles command: {e}")
-        emb = make_embed(
-            title='Error',
-            description=f'❌ An error occurred: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
 
+# ============================================================================
+# SLASH COMMANDS - ROLE LANGUAGE MANAGEMENT (GROUP)
+# ============================================================================
 
 @role_group.command(name='setlang', description='Assign a default language to a role (Admin only)')
 @app_commands.describe(
@@ -2615,57 +2513,6 @@ async def role_removelang(interaction: discord.Interaction, role: discord.Role):
         )
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
-
-@view_group.command(name='rolelanguages', description='List roles with language assignments')
-async def view_rolelanguages(interaction: discord.Interaction):
-    """List all role language assignments for the current guild."""
-    try:
-        guild_id = str(interaction.guild.id)
-        
-        if guild_id not in role_languages or not role_languages[guild_id]:
-            emb = make_embed(
-                title='Role Languages 🌐',
-                description='No roles have language assignments yet.\n\n**How to set up:**\n1. Use `/role setlang` to assign languages to roles\n2. Members with those roles can right-click messages\n3. Select "Translate Message" to translate instantly\n\n💡 **Example:** Assign English to @English-Speakers role',
-                color=discord.Color.blurple()
-            )
-            await interaction.response.send_message(embed=emb, ephemeral=True)
-            return
-        
-        # Build role list
-        role_list = []
-        for role_id, lang_code in role_languages[guild_id].items():
-            role = interaction.guild.get_role(int(role_id))
-            lang_name = SUPPORTED.get(lang_code, lang_code)
-            flag_emoji = {
-                'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
-            }.get(lang_code, '🌐')
-            
-            if role:
-                role_list.append(f'• {role.mention} → **{flag_emoji} {lang_name}**')
-            else:
-                role_list.append(f'• ~~Deleted Role~~ (ID: {role_id}) → **{flag_emoji} {lang_name}**')
-        
-        description = '**Roles with Language Assignments:**\n\n' + '\n'.join(role_list)
-        description += '\n\n**How it works:**\n✅ Right-click any message\n✅ Select "Translate Message"\n✅ Instant translation to your role language'
-        
-        emb = make_embed(
-            title='Role Languages 🌐',
-            description=description,
-            color=discord.Color.blurple()
-        )
-        emb.set_footer(text=f"Total roles: {len(role_languages[guild_id])} • Use /role setlang or /role removelang to manage")
-        
-        await interaction.response.send_message(embed=emb, ephemeral=True)
-        
-    except Exception as e:
-        logger.error(f"Error in listrolelanguages command: {e}")
-        emb = make_embed(
-            title='Error',
-            description=f'❌ An error occurred: {str(e)}',
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
 # ============================================================================
