@@ -1338,7 +1338,7 @@ async def ping(interaction: discord.Interaction):
     ws_ms = round(bot.latency * 1000)
     color = _choose_latency_color(ws_ms)
     emoji = "🟢" if ws_ms < 100 else ("🟡" if ws_ms < 250 else "🔴")
-    emb = make_embed(title=f"Pong! {emoji} 🏓", description=f"WebSocket latency: **{ws_ms} ms**", color=color)
+    emb = make_embed(title=f"Pong! {emoji} ❄️", description=f"WebSocket latency: **{ws_ms} ms**", color=color)
     emb.set_footer(text="Latency may vary. Measures websocket heartbeat latency.")
     await interaction.response.send_message(embed=emb, ephemeral=False)
 
