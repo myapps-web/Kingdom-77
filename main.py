@@ -91,13 +91,13 @@ BOT_PERMISSIONS = {
         'name': 'Set Channel Language',
         'description': 'Can set default language for channels',
         'emoji': '🌍',
-        'command': '/channel setlang'
+        'command': '/channel addlang'
     },
     'removelang': {
         'name': 'Remove Channel Language',
         'description': 'Can remove language settings from channels',
         'emoji': '🗑️',
-        'command': '/channel removelang'
+        'command': '/channel deletelang'
     },
     'listchannels': {
         'name': 'View Channel Languages',
@@ -765,7 +765,7 @@ class RolePermissionView(discord.ui.View):
             value=f'{len(self.role.members)} member(s) can now use these commands.',
             inline=False
         )
-        emb.set_footer(text=f'Use /role remove to revoke permissions • Use /role add to modify')
+        emb.set_footer(text=f'Use /role editperms to revoke permissions • Use /role perms to modify')
         
         await interaction.response.edit_message(embed=emb, view=None)
         logger.info(f"Role {self.role.name} added with permissions: {', '.join(permissions)}")
@@ -953,7 +953,7 @@ class ChannelListView(discord.ui.View):
         """Generate embed for current page and view mode."""
         if self.view_mode == 'configured':
             if not self.configured:
-                desc = '**Channels with Language Settings:**\n\n❌ No channels have language settings configured.\n\n💡 Use `/channel setlang` to configure channel languages.'
+                desc = '**Channels with Language Settings:**\n\n❌ No channels have language settings configured.\n\n💡 Use `/channel addlang` to configure channel languages.'
             else:
                 start_idx = self.current_page * self.items_per_page
                 end_idx = min(start_idx + self.items_per_page, len(self.configured))
@@ -1313,7 +1313,7 @@ class UnifiedListView(discord.ui.View):
         if not configured and not unconfigured:
             emb.description = '❌ No text channels found in this server.'
         
-        emb.set_footer(text=f'💡 Use /channel setlang to configure channel languages')
+        emb.set_footer(text=f'💡 Use /channel addlang to configure channel languages')
         return emb
     
     def get_languages_embed(self) -> discord.Embed:
@@ -1360,7 +1360,7 @@ class UnifiedListView(discord.ui.View):
         )
         
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
-            emb.description = '**No custom roles configured.**\n\n✅ Server Owner and Administrators have full access by default.\n\n💡 Use `/role add` to grant permissions to specific roles.'
+            emb.description = '**No custom roles configured.**\n\n✅ Server Owner and Administrators have full access by default.\n\n💡 Use `/role perms` to grant permissions to specific roles.'
         else:
             role_list = []
             for role_id in allowed_roles[guild_id]:
@@ -1386,7 +1386,7 @@ class UnifiedListView(discord.ui.View):
                 inline=False
             )
         
-        emb.set_footer(text='💡 Use /role add or /role remove to manage permissions')
+        emb.set_footer(text='💡 Use /role perms or /role editperms to manage permissions')
         return emb
     
     def get_role_languages_embed(self) -> discord.Embed:
@@ -1615,8 +1615,8 @@ async def help(interaction: discord.Interaction):
     
     commands_list = [
         '**📋 Channel Commands** (`/channel`)',
-        '`/channel setlang [channel]` - Set default language',
-        '`/channel removelang [channel]` - Remove language setting',
+        '`/channel addlang [channel]` - Set default language',
+        '`/channel deletelang [channel]` - Remove language setting',
         '',
         '**👁️ View Commands** (`/view`)',
         '`/view all` - Browse everything in tabbed view',
@@ -1640,8 +1640,8 @@ async def help(interaction: discord.Interaction):
         admin_commands = [
             '',
             '**🛡️ Role Commands** (`/role`) *Admin Only*',
-            '`/role add <role>` - Grant bot permissions to role',
-            '`/role remove <role>` - Revoke bot permissions',
+            '`/role perms <role>` - Grant bot permissions to role',
+            '`/role editperms <role>` - Edit/Revoke role permissions',
             '`/role setlang <role> <language>` - Assign language',
             '`/role removelang <role>` - Remove language',
             '',
@@ -1743,7 +1743,7 @@ async def view_all(interaction: discord.Interaction):
 # SLASH COMMANDS - CHANNEL LANGUAGE MANAGEMENT (GROUP)
 # ============================================================================
 
-@channel_group.command(name='setlang', description='Set default language for a channel')
+@channel_group.command(name='addlang', description='Add/Set language for a channel')
 @app_commands.describe(
     channel='Select channel to set language for (optional, defaults to current channel)'
 )
@@ -1805,7 +1805,7 @@ async def view_languages(interaction: discord.Interaction):
     """List all supported languages."""
     lang_list = [f'• **{name}** (`{code}`)' for code, name in SUPPORTED.items()]
     desc = '**Supported Languages:**\n\n' + '\n'.join(lang_list)
-    desc += '\n\nUse `/channel setlang` to configure a channel.'
+    desc += '\n\nUse `/channel addlang` to configure a channel.'
     
     emb = make_embed(title='Supported Languages', description=desc)
     await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1853,7 +1853,7 @@ async def view_channels(interaction: discord.Interaction):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@channel_group.command(name='removelang', description='Remove language setting from a channel')
+@channel_group.command(name='deletelang', description='Delete language setting from a channel')
 @app_commands.describe(
     channel='Select channel to remove language setting from (shows only configured channels)'
 )
@@ -1921,7 +1921,7 @@ async def channel_removelang(interaction: discord.Interaction, channel: str = No
                 value='Messages in this channel will no longer be automatically translated.',
                 inline=False
             )
-            emb.set_footer(text=f'Use /channel setlang to configure a new language')
+            emb.set_footer(text=f'Use /channel addlang to configure a new language')
             await interaction.response.send_message(embed=emb, ephemeral=True)
         else:
             emb = make_embed(
@@ -2008,7 +2008,7 @@ async def ratings(interaction: discord.Interaction):
 # SLASH COMMANDS - ROLE MANAGEMENT (GROUP)
 # ============================================================================
 
-@role_group.command(name='add', description='Add a role with custom bot permissions (Admin only)')
+@role_group.command(name='perms', description='Add role with custom permissions (Admin only)')
 @app_commands.describe(
     role='Select a mentionable role to grant bot permissions'
 )
@@ -2124,7 +2124,7 @@ async def role_add(interaction: discord.Interaction, role: str):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@role_group.command(name='remove', description='Remove a role from bot permissions (Admin only)')
+@role_group.command(name='editperms', description='Edit/Remove role permissions (Admin only)')
 @app_commands.describe(
     role='Select an allowed role to remove from language management permissions'
 )
@@ -2147,7 +2147,7 @@ async def role_remove(interaction: discord.Interaction, role: str):
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='No Allowed Roles',
-                description='⚠️ There are no allowed roles configured for this server.\n\n💡 Use `/role add` to add roles with language management permissions.',
+                description='⚠️ There are no allowed roles configured for this server.\n\n💡 Use `/role perms` to add roles with language management permissions.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2179,7 +2179,7 @@ async def role_remove(interaction: discord.Interaction, role: str):
         if role_id not in allowed_roles[guild_id]:
             emb = make_embed(
                 title='Role Not in List',
-                description=f'⚠️ {role_obj.mention} is not in the allowed roles list.\n\n💡 Only roles added with `/role add` can be removed.',
+                description=f'⚠️ {role_obj.mention} is not in the allowed roles list.\n\n💡 Only roles added with `/role perms` can be edited.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2189,8 +2189,8 @@ async def role_remove(interaction: discord.Interaction, role: str):
         perm_details = []
         if role_obj.permissions.administrator:
             perm_details.append("• Administrator privileges")
-        perm_details.append("• Set channel languages (`/channel setlang`)")
-        perm_details.append("• Remove language settings (`/channel removelang`)")
+        perm_details.append("• Set channel languages (`/channel addlang`)")
+        perm_details.append("• Remove language settings (`/channel deletelang`)")
         perm_details.append("• View channel languages (`/view channels`)")
         
         # Remove role
@@ -2212,7 +2212,7 @@ async def role_remove(interaction: discord.Interaction, role: str):
             value='Members with this role can no longer manage channel language settings.',
             inline=False
         )
-        emb.set_footer(text=f'Use /role add to add it back • Remaining allowed roles: {len(allowed_roles.get(guild_id, []))}')
+        emb.set_footer(text=f'Use /role perms to add it back • Remaining allowed roles: {len(allowed_roles.get(guild_id, []))}')
         await interaction.response.send_message(embed=emb, ephemeral=True)
         logger.info(f"Role {role_obj.name} ({role_id}) removed from allowed roles in guild {interaction.guild.name}")
         
@@ -2235,7 +2235,7 @@ async def view_roles(interaction: discord.Interaction):
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='Allowed Roles 📋',
-                description='No custom roles configured for language management.\n\n**Default Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control\n\n💡 Use `/role add` to grant language management permissions to specific roles.',
+                description='No custom roles configured for language management.\n\n**Default Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control\n\n💡 Use `/role perms` to grant language management permissions to specific roles.',
                 color=discord.Color.blurple()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2260,14 +2260,14 @@ async def view_roles(interaction: discord.Interaction):
         
         description = '**Roles with language management permissions:**\n\n' + '\n'.join(role_list)
         description += '\n\n**Built-in Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control'
-        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/channel setlang`)\n✅ Remove language settings (`/channel removelang`)\n✅ View language settings (`/view channels`)'
+        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/channel addlang`)\n✅ Remove language settings (`/channel deletelang`)\n✅ View language settings (`/view channels`)'
         
         emb = make_embed(
             title='Allowed Roles 📋',
             description=description,
             color=discord.Color.blurple()
         )
-        emb.set_footer(text=f"Total custom roles: {len(allowed_roles[guild_id])} • Use /role add or /role remove to manage")
+        emb.set_footer(text=f"Total custom roles: {len(allowed_roles[guild_id])} • Use /role perms or /role editperms to manage")
         
         await interaction.response.send_message(embed=emb, ephemeral=True)
         
