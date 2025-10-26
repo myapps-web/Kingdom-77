@@ -352,6 +352,16 @@ role_permissions = load_role_permissions()
 translation_cache = {}  # {(text_hash, source_lang, target_lang): translated_text}
 CACHE_MAX_SIZE = 1000  # Maximum cache entries
 
+# Command Groups for organized slash commands
+channel_group = app_commands.Group(name="channel", description="📋 Manage channel language settings")
+role_group = app_commands.Group(name="role", description="🛡️ Manage role permissions and languages")
+view_group = app_commands.Group(name="view", description="👁️ View bot information and lists")
+
+# Register groups with the bot
+bot.tree.add_command(channel_group)
+bot.tree.add_command(role_group)
+bot.tree.add_command(view_group)
+
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -1604,48 +1614,48 @@ async def help(interaction: discord.Interaction):
     is_admin = interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id
     
     commands_list = [
-        '**Language Management:**',
-        '`/setlang [channel]` - Set default language for a channel',
-        '`/removelang [channel]` - Remove language setting for a channel',
-        '`/list` - Browse all lists in unified view with tabs',
-        '`/listchannels` - List all channels with their language settings',
-        '`/listlangs` - List all supported languages',
+        '**📋 Channel Commands** (`/channel`)',
+        '`/channel setlang [channel]` - Set default language',
+        '`/channel removelang [channel]` - Remove language setting',
         '',
-        '**Translation Features:**',
-        '`Right-click message → Translate Message` - Translate any message to your language',
+        '**👁️ View Commands** (`/view`)',
+        '`/view all` - Browse everything in tabbed view',
+        '`/view channels` - List channel language settings',
+        '`/view languages` - List supported languages',
+        '`/view roles` - List roles with permissions',
+        '`/view rolelanguages` - List role language assignments',
+        '',
+        '**🖱️ Context Menu:**',
+        '`Right-click message → Translate Message`',
         '💡 *Requires role with assigned language*',
         '',
-        '**Bot Information:**',
-        '`/rate` - Rate your experience with the bot',
-        '`/ratings` - View bot rating statistics',
-        '`/ping` - Check if the bot is responsive',
-        '`/help` - Show this help message'
+        '**⭐ Bot Info:**',
+        '`/rate` - Rate the bot',
+        '`/ratings` - View ratings',
+        '`/ping` - Check latency',
+        '`/help` - Show this help'
     ]
     
     if is_admin:
         admin_commands = [
             '',
-            '**Admin - Language Settings:**',
-            '`/addrole <role>` - Add a role that can manage language settings',
-            '`/removerole <role>` - Remove a role from language management',
-            '`/listroles` - List all roles with language management permissions',
+            '**🛡️ Role Commands** (`/role`) *Admin Only*',
+            '`/role add <role>` - Grant bot permissions to role',
+            '`/role remove <role>` - Revoke bot permissions',
+            '`/role setlang <role> <language>` - Assign language',
+            '`/role removelang <role>` - Remove language',
             '',
-            '**Admin - Role Languages:**',
-            '`/setrolelang <role> <language>` - Assign a language to a role',
-            '`/removerolelang <role>` - Remove language assignment from a role',
-            '`/listrolelanguages` - List all roles with language assignments',
-            '',
-            '**Admin - Debug:**',
-            '`/debug` - Show bot debug information'
+            '**🔧 Admin Tools:**',
+            '`/debug` - Show debug information'
         ]
         commands_list.extend(admin_commands)
     
     desc = '\n'.join(commands_list)
     
     if is_admin:
-        desc += '\n\n**Permission System:**\nBy default, Server Owner and Administrators can manage languages. Use `/addrole` to grant permissions to specific roles.'
+        desc += '\n\n**💡 Tip:** Commands are organized in groups for easier navigation!'
     
-    emb = make_embed(title='Bot Commands', description=desc)
+    emb = make_embed(title='📚 Bot Commands', description=desc)
     emb.set_footer(text="Use autocomplete to easily select channels!")
     await interaction.response.send_message(embed=emb, ephemeral=True)
 
@@ -1706,11 +1716,11 @@ async def debug_info(interaction: discord.Interaction):
 
 
 # ============================================================================
-# SLASH COMMANDS - UNIFIED LIST
+# SLASH COMMANDS - VIEW/LIST (GROUP)
 # ============================================================================
 
-@bot.tree.command(name='list', description='Browse all bot lists in one unified view')
-async def list_command(interaction: discord.Interaction):
+@view_group.command(name='all', description='Browse all bot information in unified tabbed view')
+async def view_all(interaction: discord.Interaction):
     """Unified command to view all lists with tab navigation."""
     try:
         view = UnifiedListView(interaction)
@@ -1730,15 +1740,15 @@ async def list_command(interaction: discord.Interaction):
 
 
 # ============================================================================
-# SLASH COMMANDS - LANGUAGE MANAGEMENT
+# SLASH COMMANDS - CHANNEL LANGUAGE MANAGEMENT (GROUP)
 # ============================================================================
 
-@bot.tree.command(name='setlang', description='Set default language for a channel')
+@channel_group.command(name='setlang', description='Set default language for a channel')
 @app_commands.describe(
     channel='Select channel to set language for (optional, defaults to current channel)'
 )
 @app_commands.autocomplete(channel=channel_autocomplete)
-async def setlang(interaction: discord.Interaction, channel: str = None):
+async def channel_setlang(interaction: discord.Interaction, channel: str = None):
     """Set the default language for a channel."""
     guild_id = str(interaction.guild.id)
     if not has_permission(interaction.user, guild_id):
@@ -1790,8 +1800,8 @@ async def setlang(interaction: discord.Interaction, channel: str = None):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='listlangs', description='List all supported languages')
-async def listlangs(interaction: discord.Interaction):
+@view_group.command(name='languages', description='List all supported translation languages')
+async def view_languages(interaction: discord.Interaction):
     """List all supported languages."""
     lang_list = [f'• **{name}** (`{code}`)' for code, name in SUPPORTED.items()]
     desc = '**Supported Languages:**\n\n' + '\n'.join(lang_list)
@@ -1801,8 +1811,8 @@ async def listlangs(interaction: discord.Interaction):
     await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='listchannels', description='List all channels with their language settings')
-async def listchannels(interaction: discord.Interaction):
+@view_group.command(name='channels', description='List all channels with language settings')
+async def view_channels(interaction: discord.Interaction):
     """List all channels with pagination."""
     if not interaction.guild:
         emb = make_embed(
@@ -1843,12 +1853,12 @@ async def listchannels(interaction: discord.Interaction):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='removelang', description='Remove language setting for a channel')
+@channel_group.command(name='removelang', description='Remove language setting from a channel')
 @app_commands.describe(
     channel='Select channel to remove language setting from (shows only configured channels)'
 )
 @app_commands.autocomplete(channel=configured_channel_autocomplete)
-async def removelang(interaction: discord.Interaction, channel: str = None):
+async def channel_removelang(interaction: discord.Interaction, channel: str = None):
     """Remove language configuration from a channel."""
     guild_id = str(interaction.guild.id)
     if not has_permission(interaction.user, guild_id):
@@ -1994,12 +2004,16 @@ async def ratings(interaction: discord.Interaction):
 # SLASH COMMANDS - ROLE MANAGEMENT (ADMIN ONLY)
 # ============================================================================
 
-@bot.tree.command(name='addrole', description='Add a mentionable role with custom permissions (Admin only)')
+# ============================================================================
+# SLASH COMMANDS - ROLE MANAGEMENT (GROUP)
+# ============================================================================
+
+@role_group.command(name='add', description='Add a role with custom bot permissions (Admin only)')
 @app_commands.describe(
     role='Select a mentionable role to grant bot permissions'
 )
 @app_commands.autocomplete(role=mentionable_role_autocomplete)
-async def addrole(interaction: discord.Interaction, role: str):
+async def role_add(interaction: discord.Interaction, role: str):
     """Add a role to the allowed roles list with custom permission selection."""
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
@@ -2110,12 +2124,12 @@ async def addrole(interaction: discord.Interaction, role: str):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='removerole', description='Remove a role from language management permissions (Admin only)')
+@role_group.command(name='remove', description='Remove a role from bot permissions (Admin only)')
 @app_commands.describe(
     role='Select an allowed role to remove from language management permissions'
 )
 @app_commands.autocomplete(role=allowed_role_autocomplete)
-async def removerole(interaction: discord.Interaction, role: str):
+async def role_remove(interaction: discord.Interaction, role: str):
     """Remove a role from the allowed roles list. Only shows roles that have been added."""
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
@@ -2212,8 +2226,8 @@ async def removerole(interaction: discord.Interaction, role: str):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='listroles', description='List all roles with language management permissions')
-async def listroles(interaction: discord.Interaction):
+@view_group.command(name='roles', description='List roles with bot permissions')
+async def view_roles(interaction: discord.Interaction):
     """List all allowed roles for the current guild with their permission details."""
     try:
         guild_id = str(interaction.guild.id)
@@ -2267,11 +2281,7 @@ async def listroles(interaction: discord.Interaction):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-# ============================================================================
-# SLASH COMMANDS - ROLE LANGUAGE MANAGEMENT (ADMIN ONLY)
-# ============================================================================
-
-@bot.tree.command(name='setrolelang', description='Assign a language to a role for translation feature (Admin only)')
+@role_group.command(name='setlang', description='Assign a default language to a role (Admin only)')
 @app_commands.describe(
     role='Select a role to assign a language',
     language='Select the language for this role'
@@ -2286,7 +2296,7 @@ async def listroles(interaction: discord.Interaction):
     app_commands.Choice(name='🇮🇹 Italian', value='it'),
     app_commands.Choice(name='🇨🇳 Chinese', value='zh-CN')
 ])
-async def setrolelang(interaction: discord.Interaction, role: discord.Role, language: str):
+async def role_setlang(interaction: discord.Interaction, role: discord.Role, language: str):
     """Assign a language to a role for context menu translation."""
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
@@ -2343,11 +2353,11 @@ async def setrolelang(interaction: discord.Interaction, role: discord.Role, lang
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='removerolelang', description='Remove language assignment from a role (Admin only)')
+@role_group.command(name='removelang', description='Remove language assignment from a role (Admin only)')
 @app_commands.describe(
     role='Select a role to remove language assignment'
 )
-async def removerolelang(interaction: discord.Interaction, role: discord.Role):
+async def role_removelang(interaction: discord.Interaction, role: discord.Role):
     """Remove language assignment from a role."""
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
@@ -2418,8 +2428,8 @@ async def removerolelang(interaction: discord.Interaction, role: discord.Role):
         await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
-@bot.tree.command(name='listrolelanguages', description='List all roles with language assignments')
-async def listrolelanguages(interaction: discord.Interaction):
+@view_group.command(name='rolelanguages', description='List roles with language assignments')
+async def view_rolelanguages(interaction: discord.Interaction):
     """List all role language assignments for the current guild."""
     try:
         guild_id = str(interaction.guild.id)
