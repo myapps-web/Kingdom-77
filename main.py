@@ -1175,21 +1175,23 @@ async def allowed_role_autocomplete(
 
 
 class UnifiedListView(discord.ui.View):
-    """Unified view for all list commands with tab navigation."""
+    """Unified view for all list commands with dropdown filters and pagination."""
     
     def __init__(self, interaction: discord.Interaction):
         super().__init__(timeout=300)
         self.interaction = interaction
-        self.current_tab = 'channels'  # channels, languages, roles, role_languages
-        self.channel_page = 0
-        self.items_per_page = 10
-        self.update_buttons()
+        self.current_tab = 'channels'
+        self.channel_filter = 'configured'  # configured, unconfigured
+        self.language_filter = 'primary'    # primary, all
+        self.page = 0
+        self.items_per_page = 8
+        self.update_view()
     
-    def update_buttons(self):
-        """Update button states based on current tab."""
+    def update_view(self):
+        """Update view components based on current tab."""
         self.clear_items()
         
-        # Tab buttons
+        # Tab buttons (Row 0)
         self.add_item(discord.ui.Button(
             label="📋 Channels",
             style=discord.ButtonStyle.primary if self.current_tab == 'channels' else discord.ButtonStyle.secondary,
@@ -1215,7 +1217,76 @@ class UnifiedListView(discord.ui.View):
             row=0
         ))
         
-        # Get actual buttons and set callbacks
+        # Add dropdown for channels/languages tabs (Row 1)
+        if self.current_tab == 'channels':
+            select = discord.ui.Select(
+                placeholder="Filter channels...",
+                options=[
+                    discord.SelectOption(label="Configured Channels", value="configured", emoji="✅", 
+                                       description="Channels with language settings", 
+                                       default=self.channel_filter == 'configured'),
+                    discord.SelectOption(label="Unconfigured Channels", value="unconfigured", emoji="⚪",
+                                       description="Channels without language settings",
+                                       default=self.channel_filter == 'unconfigured')
+                ],
+                custom_id="channel_filter",
+                row=1
+            )
+            select.callback = self.on_channel_filter
+            self.add_item(select)
+        elif self.current_tab == 'languages':
+            select = discord.ui.Select(
+                placeholder="Select language category...",
+                options=[
+                    discord.SelectOption(label="Primary Languages (8)", value="primary", emoji="⭐",
+                                       description="Languages you can set for channels",
+                                       default=self.language_filter == 'primary'),
+                    discord.SelectOption(label="All Languages (35+)", value="all", emoji="🌍",
+                                       description="All languages bot can translate",
+                                       default=self.language_filter == 'all')
+                ],
+                custom_id="language_filter",
+                row=1
+            )
+            select.callback = self.on_language_filter
+            self.add_item(select)
+        
+        # Pagination buttons (Row 2) - only for channels and languages with all filter
+        if self.current_tab in ['channels', 'languages']:
+            total_items = self.get_total_items()
+            total_pages = max(1, (total_items + self.items_per_page - 1) // self.items_per_page)
+            
+            if total_pages > 1:
+                prev_btn = discord.ui.Button(
+                    label="◀️ Previous",
+                    style=discord.ButtonStyle.gray,
+                    custom_id="prev_page",
+                    disabled=self.page == 0,
+                    row=2
+                )
+                prev_btn.callback = self.prev_page
+                self.add_item(prev_btn)
+                
+                page_btn = discord.ui.Button(
+                    label=f"Page {self.page + 1}/{total_pages}",
+                    style=discord.ButtonStyle.secondary,
+                    custom_id="page_info",
+                    disabled=True,
+                    row=2
+                )
+                self.add_item(page_btn)
+                
+                next_btn = discord.ui.Button(
+                    label="Next ▶️",
+                    style=discord.ButtonStyle.gray,
+                    custom_id="next_page",
+                    disabled=self.page >= total_pages - 1,
+                    row=2
+                )
+                next_btn.callback = self.next_page
+                self.add_item(next_btn)
+        
+        # Set callbacks for tab buttons
         for item in self.children:
             if isinstance(item, discord.ui.Button):
                 if item.custom_id == "tab_channels":
@@ -1227,112 +1298,180 @@ class UnifiedListView(discord.ui.View):
                 elif item.custom_id == "tab_role_languages":
                     item.callback = self.show_role_languages
     
+    def get_total_items(self) -> int:
+        """Get total items for current view."""
+        if self.current_tab == 'channels':
+            guild = self.interaction.guild
+            if self.channel_filter == 'configured':
+                return sum(1 for ch in guild.text_channels if str(ch.id) in channel_langs)
+            else:
+                return sum(1 for ch in guild.text_channels if str(ch.id) not in channel_langs)
+        elif self.current_tab == 'languages':
+            if self.language_filter == 'primary':
+                return len(SUPPORTED)
+            else:
+                return len(LANGUAGE_NAMES)
+        return 0
+    
+    async def on_channel_filter(self, interaction: discord.Interaction):
+        """Handle channel filter change."""
+        self.channel_filter = interaction.data['values'][0]
+        self.page = 0  # Reset to first page
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def on_language_filter(self, interaction: discord.Interaction):
+        """Handle language filter change."""
+        self.language_filter = interaction.data['values'][0]
+        self.page = 0  # Reset to first page
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def prev_page(self, interaction: discord.Interaction):
+        """Go to previous page."""
+        self.page = max(0, self.page - 1)
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def next_page(self, interaction: discord.Interaction):
+        """Go to next page."""
+        total_items = self.get_total_items()
+        max_page = max(0, (total_items + self.items_per_page - 1) // self.items_per_page - 1)
+        self.page = min(max_page, self.page + 1)
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
     async def show_channels(self, interaction: discord.Interaction):
         """Show channels tab."""
         self.current_tab = 'channels'
-        self.update_buttons()
-        embed = self.get_channels_embed()
+        self.page = 0
+        self.update_view()
+        embed = self.get_embed()
         await interaction.response.edit_message(embed=embed, view=self)
     
     async def show_languages(self, interaction: discord.Interaction):
         """Show languages tab."""
         self.current_tab = 'languages'
-        self.update_buttons()
-        embed = self.get_languages_embed()
+        self.page = 0
+        self.update_view()
+        embed = self.get_embed()
         await interaction.response.edit_message(embed=embed, view=self)
     
     async def show_roles(self, interaction: discord.Interaction):
         """Show roles tab."""
         self.current_tab = 'roles'
-        self.update_buttons()
-        embed = self.get_roles_embed()
+        self.page = 0
+        self.update_view()
+        embed = self.get_embed()
         await interaction.response.edit_message(embed=embed, view=self)
     
     async def show_role_languages(self, interaction: discord.Interaction):
         """Show role languages tab."""
         self.current_tab = 'role_languages'
-        self.update_buttons()
-        embed = self.get_role_languages_embed()
+        self.page = 0
+        self.update_view()
+        embed = self.get_embed()
         await interaction.response.edit_message(embed=embed, view=self)
     
+    def get_embed(self) -> discord.Embed:
+        """Get current embed based on tab."""
+        if self.current_tab == 'channels':
+            return self.get_channels_embed()
+        elif self.current_tab == 'languages':
+            return self.get_languages_embed()
+        elif self.current_tab == 'roles':
+            return self.get_roles_embed()
+        else:
+            return self.get_role_languages_embed()
+    
     def get_channels_embed(self) -> discord.Embed:
-        """Generate channels list embed."""
+        """Generate channels list embed with pagination."""
         guild = self.interaction.guild
-        guild_id = str(guild.id)
         
-        configured = []
-        unconfigured = []
+        # Get filtered channels
+        if self.channel_filter == 'configured':
+            channels_list = []
+            for channel in guild.text_channels:
+                channel_id = str(channel.id)
+                if channel_id in channel_langs:
+                    lang_code = channel_langs[channel_id]
+                    lang_name = SUPPORTED.get(lang_code, lang_code)
+                    flag_emoji = {
+                        'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                        'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+                    }.get(lang_code, '🌐')
+                    channels_list.append(f"{flag_emoji} {channel.mention} → **{lang_name}** (`{lang_code}`)")
+        else:
+            channels_list = []
+            for channel in guild.text_channels:
+                if str(channel.id) not in channel_langs:
+                    channels_list.append(f"⚪ {channel.mention}")
         
-        for channel in guild.text_channels:
-            channel_id = str(channel.id)
-            if channel_id in channel_langs:
-                lang_code = channel_langs[channel_id]
-                lang_name = SUPPORTED.get(lang_code, lang_code)
-                flag_emoji = {
-                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
-                }.get(lang_code, '🌐')
-                configured.append(f"{flag_emoji} {channel.mention} → **{lang_name}**")
-            else:
-                unconfigured.append(f"⚪ {channel.mention}")
+        # Pagination
+        start_idx = self.page * self.items_per_page
+        end_idx = start_idx + self.items_per_page
+        page_items = channels_list[start_idx:end_idx]
+        total_pages = max(1, (len(channels_list) + self.items_per_page - 1) // self.items_per_page)
+        
+        filter_label = "✅ Configured" if self.channel_filter == 'configured' else "⚪ Unconfigured"
         
         emb = make_embed(
-            title='📋 Channel Language Settings',
-            color=discord.Color.blurple()
+            title=f'📋 Channel Language Settings - {filter_label}',
+            color=discord.Color.green() if self.channel_filter == 'configured' else discord.Color.greyple()
         )
         
-        if configured:
-            emb.add_field(
-                name=f'✅ Configured Channels ({len(configured)})',
-                value='\n'.join(configured[:10]) + (f'\n*...and {len(configured) - 10} more*' if len(configured) > 10 else ''),
-                inline=False
-            )
+        if page_items:
+            emb.description = '\n'.join(page_items)
+        else:
+            emb.description = f'❌ No {filter_label.lower()} channels found.'
         
-        if unconfigured:
-            emb.add_field(
-                name=f'⚪ Unconfigured Channels ({len(unconfigured)})',
-                value='\n'.join(unconfigured[:5]) + (f'\n*...and {len(unconfigured) - 5} more*' if len(unconfigured) > 5 else ''),
-                inline=False
-            )
-        
-        if not configured and not unconfigured:
-            emb.description = '❌ No text channels found in this server.'
-        
-        emb.set_footer(text=f'💡 Use /channel addlang to configure channel languages')
+        emb.set_footer(text=f'Page {self.page + 1}/{total_pages} • Total: {len(channels_list)} channels • Use /channel addlang to configure')
         return emb
     
     def get_languages_embed(self) -> discord.Embed:
-        """Generate supported languages embed."""
-        emb = make_embed(
-            title='🌐 Supported Languages',
-            description='**Primary Translation Languages:**',
-            color=discord.Color.green()
-        )
-        
-        primary_langs = []
-        for code, name in SUPPORTED.items():
-            flag_emoji = {
-                'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
-            }.get(code, '🌐')
-            primary_langs.append(f"{flag_emoji} **{name}** (`{code}`)")
-        
-        emb.add_field(
-            name=f'✨ Available for Translation ({len(SUPPORTED)})',
-            value='\n'.join(primary_langs),
-            inline=False
-        )
-        
-        # Additional detection languages
-        additional_count = len(LANGUAGE_NAMES) - len(SUPPORTED)
-        emb.add_field(
-            name=f'🔍 Detection Support',
-            value=f'Plus **{additional_count}** additional languages for detection\n└ Spanish, German, Portuguese, Russian, Hindi, and more!',
-            inline=False
-        )
-        
-        emb.set_footer(text=f'Total: {len(LANGUAGE_NAMES)} languages supported for detection')
-        return emb
+        """Generate languages embed with pagination."""
+        if self.language_filter == 'primary':
+            # Primary languages
+            langs = []
+            for code, name in SUPPORTED.items():
+                flag_emoji = {
+                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+                }.get(code, '🌐')
+                langs.append(f"{flag_emoji} **{name}** (`{code}`)")
+            
+            emb = make_embed(
+                title='⭐ Primary Translation Languages',
+                description='**These languages can be set for channels:**\n\n' + '\n'.join(langs),
+                color=discord.Color.gold()
+            )
+            emb.set_footer(text=f'Total: {len(SUPPORTED)} primary languages • Use /channel addlang to set')
+            return emb
+        else:
+            # All languages with pagination
+            langs = []
+            for code, name in sorted(LANGUAGE_NAMES.items(), key=lambda x: x[1]):
+                is_primary = code in SUPPORTED
+                emoji = "⭐" if is_primary else "🌍"
+                langs.append(f"{emoji} **{name}** (`{code}`)")
+            
+            # Pagination
+            start_idx = self.page * self.items_per_page
+            end_idx = start_idx + self.items_per_page
+            page_items = langs[start_idx:end_idx]
+            total_pages = max(1, (len(langs) + self.items_per_page - 1) // self.items_per_page)
+            
+            emb = make_embed(
+                title='🌍 All Supported Languages',
+                description='⭐ = Can be set for channels\n🌍 = Can be translated\n\n' + '\n'.join(page_items),
+                color=discord.Color.blue()
+            )
+            emb.set_footer(text=f'Page {self.page + 1}/{total_pages} • Total: {len(LANGUAGE_NAMES)} languages')
+            return emb
     
     def get_roles_embed(self) -> discord.Embed:
         """Generate roles list embed."""
@@ -1416,17 +1555,6 @@ class UnifiedListView(discord.ui.View):
         
         emb.set_footer(text='💡 Use /role setlang to assign role languages')
         return emb
-    
-    def get_initial_embed(self) -> discord.Embed:
-        """Get initial embed based on current tab."""
-        if self.current_tab == 'channels':
-            return self.get_channels_embed()
-        elif self.current_tab == 'languages':
-            return self.get_languages_embed()
-        elif self.current_tab == 'roles':
-            return self.get_roles_embed()
-        else:
-            return self.get_role_languages_embed()
 
 
 # ============================================================================
@@ -1781,10 +1909,10 @@ async def sync_commands(interaction: discord.Interaction):
 
 @view_group.command(name='all', description='Browse all bot information in unified tabbed view')
 async def view_all(interaction: discord.Interaction):
-    """Unified command to view all lists with tab navigation."""
+    """Unified command to view all lists with tab navigation, filters, and pagination."""
     try:
         view = UnifiedListView(interaction)
-        embed = view.get_initial_embed()
+        embed = view.get_embed()
         
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         logger.info(f"User {interaction.user} opened unified list view")
