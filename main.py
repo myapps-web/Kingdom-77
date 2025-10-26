@@ -91,37 +91,37 @@ BOT_PERMISSIONS = {
         'name': 'Set Channel Language',
         'description': 'Can set default language for channels',
         'emoji': '🌍',
-        'command': '/setlang'
+        'command': '/channel setlang'
     },
     'removelang': {
         'name': 'Remove Channel Language',
         'description': 'Can remove language settings from channels',
         'emoji': '🗑️',
-        'command': '/removelang'
+        'command': '/channel removelang'
     },
     'listchannels': {
         'name': 'View Channel Languages',
         'description': 'Can view all channel language settings',
         'emoji': '📋',
-        'command': '/listchannels'
+        'command': '/view channels'
     },
     'setrolelang': {
         'name': 'Set Role Language',
         'description': 'Can assign default languages to roles',
         'emoji': '🎭',
-        'command': '/setrolelang'
+        'command': '/role setlang'
     },
     'removerolelang': {
         'name': 'Remove Role Language',
         'description': 'Can remove language assignments from roles',
         'emoji': '🗑️',
-        'command': '/removerolelang'
+        'command': '/role removelang'
     },
     'listrolelanguages': {
         'name': 'View Role Languages',
         'description': 'Can view all role language assignments',
         'emoji': '📜',
-        'command': '/listrolelanguages'
+        'command': '/view rolelanguages'
     }
 }
 
@@ -765,7 +765,7 @@ class RolePermissionView(discord.ui.View):
             value=f'{len(self.role.members)} member(s) can now use these commands.',
             inline=False
         )
-        emb.set_footer(text=f'Use /removerole to revoke permissions • Use /addrole to modify')
+        emb.set_footer(text=f'Use /role remove to revoke permissions • Use /role add to modify')
         
         await interaction.response.edit_message(embed=emb, view=None)
         logger.info(f"Role {self.role.name} added with permissions: {', '.join(permissions)}")
@@ -953,7 +953,7 @@ class ChannelListView(discord.ui.View):
         """Generate embed for current page and view mode."""
         if self.view_mode == 'configured':
             if not self.configured:
-                desc = '**Channels with Language Settings:**\n\n❌ No channels have language settings configured.\n\n💡 Use `/setlang` to configure channel languages.'
+                desc = '**Channels with Language Settings:**\n\n❌ No channels have language settings configured.\n\n💡 Use `/channel setlang` to configure channel languages.'
             else:
                 start_idx = self.current_page * self.items_per_page
                 end_idx = min(start_idx + self.items_per_page, len(self.configured))
@@ -1313,7 +1313,7 @@ class UnifiedListView(discord.ui.View):
         if not configured and not unconfigured:
             emb.description = '❌ No text channels found in this server.'
         
-        emb.set_footer(text=f'💡 Use /setlang to configure channel languages')
+        emb.set_footer(text=f'💡 Use /channel setlang to configure channel languages')
         return emb
     
     def get_languages_embed(self) -> discord.Embed:
@@ -1360,7 +1360,7 @@ class UnifiedListView(discord.ui.View):
         )
         
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
-            emb.description = '**No custom roles configured.**\n\n✅ Server Owner and Administrators have full access by default.\n\n💡 Use `/addrole` to grant permissions to specific roles.'
+            emb.description = '**No custom roles configured.**\n\n✅ Server Owner and Administrators have full access by default.\n\n💡 Use `/role add` to grant permissions to specific roles.'
         else:
             role_list = []
             for role_id in allowed_roles[guild_id]:
@@ -1386,7 +1386,7 @@ class UnifiedListView(discord.ui.View):
                 inline=False
             )
         
-        emb.set_footer(text='💡 Use /addrole or /removerole to manage permissions')
+        emb.set_footer(text='💡 Use /role add or /role remove to manage permissions')
         return emb
     
     def get_role_languages_embed(self) -> discord.Embed:
@@ -1400,7 +1400,7 @@ class UnifiedListView(discord.ui.View):
         )
         
         if guild_id not in role_languages or not role_languages[guild_id]:
-            emb.description = '**No role language assignments yet.**\n\n**How to set up:**\n1. Use `/setrolelang` to assign languages to roles\n2. Members with those roles can right-click messages\n3. Select "Translate Message" to translate instantly\n\n💡 **Example:** Assign English to @English-Speakers role'
+            emb.description = '**No role language assignments yet.**\n\n**How to set up:**\n1. Use `/role setlang` to assign languages to roles\n2. Members with those roles can right-click messages\n3. Select "Translate Message" to translate instantly\n\n💡 **Example:** Assign English to @English-Speakers role'
         else:
             role_list = []
             for role_id, lang_code in role_languages[guild_id].items():
@@ -1429,7 +1429,7 @@ class UnifiedListView(discord.ui.View):
                 inline=False
             )
         
-        emb.set_footer(text='💡 Use /setrolelang to assign role languages')
+        emb.set_footer(text='💡 Use /role setlang to assign role languages')
         return emb
     
     def get_initial_embed(self) -> discord.Embed:
@@ -1480,7 +1480,7 @@ async def translate_message_context(interaction: discord.Interaction, message: d
         if not user_languages:
             emb = make_embed(
                 title='No Language Roles',
-                description='⚠️ You don\'t have any language roles assigned.\n\n💡 **Ask an admin to:**\n1. Use `/setrolelang` to assign languages to roles\n2. Give you a role with a language assigned',
+                description='⚠️ You don\'t have any language roles assigned.\n\n💡 **Ask an admin to:**\n1. Use `/role setlang` to assign languages to roles\n2. Give you a role with a language assigned',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1805,7 +1805,7 @@ async def view_languages(interaction: discord.Interaction):
     """List all supported languages."""
     lang_list = [f'• **{name}** (`{code}`)' for code, name in SUPPORTED.items()]
     desc = '**Supported Languages:**\n\n' + '\n'.join(lang_list)
-    desc += '\n\nUse `/setlang` to configure a channel.'
+    desc += '\n\nUse `/channel setlang` to configure a channel.'
     
     emb = make_embed(title='Supported Languages', description=desc)
     await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -1921,7 +1921,7 @@ async def channel_removelang(interaction: discord.Interaction, channel: str = No
                 value='Messages in this channel will no longer be automatically translated.',
                 inline=False
             )
-            emb.set_footer(text=f'Use /setlang to configure a new language')
+            emb.set_footer(text=f'Use /channel setlang to configure a new language')
             await interaction.response.send_message(embed=emb, ephemeral=True)
         else:
             emb = make_embed(
@@ -2073,7 +2073,7 @@ async def role_add(interaction: discord.Interaction, role: str):
                     description=f'{role_obj.mention} already has permissions assigned.\n\n**Current Permissions:**\n' + '\n'.join(perm_list),
                     color=discord.Color.orange()
                 )
-                emb.set_footer(text='Use /removerole first to reconfigure')
+                emb.set_footer(text='Use /role remove first to reconfigure')
             else:
                 emb = make_embed(
                     title='Role Already Added',
@@ -2147,7 +2147,7 @@ async def role_remove(interaction: discord.Interaction, role: str):
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='No Allowed Roles',
-                description='⚠️ There are no allowed roles configured for this server.\n\n💡 Use `/addrole` to add roles with language management permissions.',
+                description='⚠️ There are no allowed roles configured for this server.\n\n💡 Use `/role add` to add roles with language management permissions.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2179,7 +2179,7 @@ async def role_remove(interaction: discord.Interaction, role: str):
         if role_id not in allowed_roles[guild_id]:
             emb = make_embed(
                 title='Role Not in List',
-                description=f'⚠️ {role_obj.mention} is not in the allowed roles list.\n\n💡 Only roles added with `/addrole` can be removed.',
+                description=f'⚠️ {role_obj.mention} is not in the allowed roles list.\n\n💡 Only roles added with `/role add` can be removed.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2189,9 +2189,9 @@ async def role_remove(interaction: discord.Interaction, role: str):
         perm_details = []
         if role_obj.permissions.administrator:
             perm_details.append("• Administrator privileges")
-        perm_details.append("• Set channel languages (`/setlang`)")
-        perm_details.append("• Remove language settings (`/removelang`)")
-        perm_details.append("• View channel languages (`/listchannels`)")
+        perm_details.append("• Set channel languages (`/channel setlang`)")
+        perm_details.append("• Remove language settings (`/channel removelang`)")
+        perm_details.append("• View channel languages (`/view channels`)")
         
         # Remove role
         allowed_roles[guild_id].remove(role_id)
@@ -2212,7 +2212,7 @@ async def role_remove(interaction: discord.Interaction, role: str):
             value='Members with this role can no longer manage channel language settings.',
             inline=False
         )
-        emb.set_footer(text=f'Use /addrole to add it back • Remaining allowed roles: {len(allowed_roles.get(guild_id, []))}')
+        emb.set_footer(text=f'Use /role add to add it back • Remaining allowed roles: {len(allowed_roles.get(guild_id, []))}')
         await interaction.response.send_message(embed=emb, ephemeral=True)
         logger.info(f"Role {role_obj.name} ({role_id}) removed from allowed roles in guild {interaction.guild.name}")
         
@@ -2235,7 +2235,7 @@ async def view_roles(interaction: discord.Interaction):
         if guild_id not in allowed_roles or not allowed_roles[guild_id]:
             emb = make_embed(
                 title='Allowed Roles 📋',
-                description='No custom roles configured for language management.\n\n**Default Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control\n\n💡 Use `/addrole` to grant language management permissions to specific roles.',
+                description='No custom roles configured for language management.\n\n**Default Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control\n\n💡 Use `/role add` to grant language management permissions to specific roles.',
                 color=discord.Color.blurple()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2260,14 +2260,14 @@ async def view_roles(interaction: discord.Interaction):
         
         description = '**Roles with language management permissions:**\n\n' + '\n'.join(role_list)
         description += '\n\n**Built-in Access:**\n• 👑 Server Owner - Full control\n• 🛡️ Administrators - Full control'
-        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/setlang`)\n✅ Remove language settings (`/removelang`)\n✅ View language settings (`/listchannels`)'
+        description += '\n\n**All above roles can:**\n✅ Set channel languages (`/channel setlang`)\n✅ Remove language settings (`/channel removelang`)\n✅ View language settings (`/view channels`)'
         
         emb = make_embed(
             title='Allowed Roles 📋',
             description=description,
             color=discord.Color.blurple()
         )
-        emb.set_footer(text=f"Total custom roles: {len(allowed_roles[guild_id])} • Use /addrole or /removerole to manage")
+        emb.set_footer(text=f"Total custom roles: {len(allowed_roles[guild_id])} • Use /role add or /role remove to manage")
         
         await interaction.response.send_message(embed=emb, ephemeral=True)
         
@@ -2338,7 +2338,7 @@ async def role_setlang(interaction: discord.Interaction, role: discord.Role, lan
             description=f'Language for {role.mention} has been {action_text}.\n\n**What this means:**\nMembers with this role can now:\n• Right-click any message\n• Select "Translate Message"\n• Get instant translation to {lang_name}',
             color=discord.Color.green()
         )
-        emb.set_footer(text='Use /listrolelanguages to see all role languages')
+        emb.set_footer(text='Use /view rolelanguages to see all role languages')
         
         await interaction.response.send_message(embed=emb, ephemeral=True)
         logger.info(f"Role {role.name} language set to {language} in guild {interaction.guild.name}")
@@ -2375,7 +2375,7 @@ async def role_removelang(interaction: discord.Interaction, role: discord.Role):
         if guild_id not in role_languages or role_id not in role_languages[guild_id]:
             emb = make_embed(
                 title='Role Not Configured',
-                description=f'⚠️ {role.mention} does not have a language assigned.\n\n💡 Use `/setrolelang` to assign a language to this role.',
+                description=f'⚠️ {role.mention} does not have a language assigned.\n\n💡 Use `/role setlang` to assign a language to this role.',
                 color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2413,7 +2413,7 @@ async def role_removelang(interaction: discord.Interaction, role: discord.Role):
             value='Members with this role can no longer use "Translate Message" context menu for automatic translation.',
             inline=False
         )
-        emb.set_footer(text=f'Use /setrolelang to assign a new language')
+        emb.set_footer(text=f'Use /role setlang to assign a new language')
         
         await interaction.response.send_message(embed=emb, ephemeral=True)
         logger.info(f"Role {role.name} language removed in guild {interaction.guild.name}")
@@ -2437,7 +2437,7 @@ async def view_rolelanguages(interaction: discord.Interaction):
         if guild_id not in role_languages or not role_languages[guild_id]:
             emb = make_embed(
                 title='Role Languages 🌐',
-                description='No roles have language assignments yet.\n\n**How to set up:**\n1. Use `/setrolelang` to assign languages to roles\n2. Members with those roles can right-click messages\n3. Select "Translate Message" to translate instantly\n\n💡 **Example:** Assign English to @English-Speakers role',
+                description='No roles have language assignments yet.\n\n**How to set up:**\n1. Use `/role setlang` to assign languages to roles\n2. Members with those roles can right-click messages\n3. Select "Translate Message" to translate instantly\n\n💡 **Example:** Assign English to @English-Speakers role',
                 color=discord.Color.blurple()
             )
             await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2466,7 +2466,7 @@ async def view_rolelanguages(interaction: discord.Interaction):
             description=description,
             color=discord.Color.blurple()
         )
-        emb.set_footer(text=f"Total roles: {len(role_languages[guild_id])} • Use /setrolelang or /removerolelang to manage")
+        emb.set_footer(text=f"Total roles: {len(role_languages[guild_id])} • Use /role setlang or /role removelang to manage")
         
         await interaction.response.send_message(embed=emb, ephemeral=True)
         
