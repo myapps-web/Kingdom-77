@@ -471,30 +471,15 @@ async def on_ready():
     except Exception as e:
         logger.debug(f"Could not list app commands: {e}")
     
-    # Clear guild-specific commands
+    # Sync slash commands globally
     try:
-        for guild in bot.guilds:
-            try:
-                bot.tree.clear_commands(guild=guild)
-                await bot.tree.sync(guild=guild)
-                logger.info(f"Cleared guild-specific commands from {guild.name}")
-            except Exception as e:
-                logger.warning(f"Could not clear commands from {guild.name}: {e}")
+        logger.info("Starting command sync...")
+        synced = await bot.tree.sync()
+        logger.info(f"✅ Successfully synced {len(synced)} global commands")
+        logger.info(f"Commands synced: {[cmd.name for cmd in synced]}")
+        logger.info("Note: Global commands may take up to 1 hour to appear in all servers")
     except Exception as e:
-        logger.error(f"Error clearing guild commands: {e}")
-    
-    # Sync slash commands
-    try:
-        if GUILD_ID:
-            guild = discord.Object(id=int(GUILD_ID))
-            bot.tree.copy_global_to(guild=guild)
-            await bot.tree.sync(guild=guild)
-            logger.info(f"Synced app commands to guild {GUILD_ID}")
-        else:
-            await bot.tree.sync()
-            logger.info(f"Global sync completed for {len(bot.guilds)} servers (may take up to 1 hour to propagate)")
-    except Exception as e:
-        logger.error(f"Failed to sync commands: {e}")
+        logger.error(f"❌ Failed to sync commands: {e}")
     
     # Log other info
     try:
@@ -1681,7 +1666,8 @@ async def help(interaction: discord.Interaction):
             '`/role removelang <role>` - Remove language',
             '',
             '**🔧 Admin Tools:**',
-            '`/debug` - Show debug information'
+            '`/debug` - Show debug information',
+            '`/sync` - Force sync commands (if not visible)'
         ]
         commands_list.extend(admin_commands)
     
@@ -1748,6 +1734,45 @@ async def debug_info(interaction: discord.Interaction):
             color=discord.Color.red()
         )
         await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+@bot.tree.command(name='sync', description='Force sync bot commands (Owner only)')
+async def sync_commands(interaction: discord.Interaction):
+    """Force sync slash commands with Discord. Owner only."""
+    if interaction.user.id != interaction.guild.owner_id and not interaction.user.guild_permissions.administrator:
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ Only Server Owner or Administrator can sync commands.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    try:
+        await interaction.response.defer(ephemeral=True)
+        
+        # Sync globally
+        synced = await bot.tree.sync()
+        
+        emb = make_embed(
+            title='Commands Synced ✅',
+            description=f'Successfully synced **{len(synced)}** global commands.\n\n**Commands:**\n' + 
+                       '\n'.join([f'• `/{cmd.name}`' for cmd in synced[:20]]) +
+                       (f'\n... and {len(synced) - 20} more' if len(synced) > 20 else '') +
+                       '\n\n⏱️ **Note:** Changes may take a few minutes to appear.',
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=emb, ephemeral=True)
+        logger.info(f"Commands manually synced by {interaction.user} in {interaction.guild.name}")
+        
+    except Exception as e:
+        logger.error(f"Error syncing commands: {e}")
+        emb = make_embed(
+            title='Sync Failed ❌',
+            description=f'Failed to sync commands:\n```{str(e)}```',
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=emb, ephemeral=True)
 
 
 # ============================================================================
