@@ -210,10 +210,27 @@ TRANSLATION_MESSAGES = {
 }
 
 def get_translation_message(lang_code: str, key: str) -> str:
-    """Get translated message for a specific language."""
+    """Get translated message for a specific language.
+    If the language is not pre-defined, automatically translates from English."""
+    
+    # If language is pre-defined, use it
     if lang_code in TRANSLATION_MESSAGES and key in TRANSLATION_MESSAGES[lang_code]:
         return TRANSLATION_MESSAGES[lang_code][key]
-    # Fallback to English
+    
+    # For languages not pre-defined, translate from English automatically
+    if lang_code not in TRANSLATION_MESSAGES:
+        english_message = TRANSLATION_MESSAGES['en'].get(key, '')
+        if english_message:
+            try:
+                # Use GoogleTranslator to translate the message to the target language
+                translated = GoogleTranslator(source='en', target=lang_code).translate(english_message)
+                return translated
+            except Exception as e:
+                logger.warning(f"Failed to auto-translate message '{key}' to '{lang_code}': {e}")
+                # Fallback to English
+                return english_message
+    
+    # Final fallback to English
     return TRANSLATION_MESSAGES['en'].get(key, '')
 
 # Logging configuration
