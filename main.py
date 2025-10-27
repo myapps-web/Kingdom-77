@@ -97,37 +97,85 @@ BOT_PERMISSIONS = {
         'name': 'Set Channel Language',
         'description': 'Can set default language for channels',
         'emoji': '🌍',
-        'command': '/channel addlang'
+        'command': '/channel addlang',
+        'category': 'Channel Management'
     },
     'removelang': {
         'name': 'Remove Channel Language',
         'description': 'Can remove language settings from channels',
         'emoji': '🗑️',
-        'command': '/channel deletelang'
+        'command': '/channel deletelang',
+        'category': 'Channel Management'
+    },
+    'set_quality': {
+        'name': 'Set Translation Quality',
+        'description': 'Can change translation quality mode for channels',
+        'emoji': '⚡',
+        'command': '/channel quality',
+        'category': 'Channel Management'
     },
     'listchannels': {
         'name': 'View Channel Languages',
         'description': 'Can view all channel language settings',
         'emoji': '📋',
-        'command': '/view channels'
+        'command': '/view channels',
+        'category': 'Information'
     },
     'setrolelang': {
         'name': 'Set Role Language',
         'description': 'Can assign default languages to roles',
         'emoji': '🎭',
-        'command': '/role setlang'
+        'command': '/role setlang',
+        'category': 'Role Management'
     },
     'removerolelang': {
         'name': 'Remove Role Language',
         'description': 'Can remove language assignments from roles',
         'emoji': '🗑️',
-        'command': '/role removelang'
+        'command': '/role removelang',
+        'category': 'Role Management'
     },
     'listrolelanguages': {
         'name': 'View Role Languages',
         'description': 'Can view all role language assignments',
         'emoji': '📜',
-        'command': '/view rolelanguages'
+        'command': '/view rolelanguages',
+        'category': 'Information'
+    },
+    'manage_roles': {
+        'name': 'Manage Bot Roles',
+        'description': 'Can add/remove allowed roles and set permissions',
+        'emoji': '👥',
+        'command': '/role add, /role remove',
+        'category': 'Role Management'
+    },
+    'view_stats': {
+        'name': 'View Statistics',
+        'description': 'Can view detailed bot statistics and analytics',
+        'emoji': '📊',
+        'command': '/botstats',
+        'category': 'Information'
+    },
+    'view_all_lists': {
+        'name': 'View All Lists',
+        'description': 'Can view all server lists and configurations',
+        'emoji': '📝',
+        'command': '/view lists',
+        'category': 'Information'
+    },
+    'rate_bot': {
+        'name': 'Rate Bot',
+        'description': 'Can rate and provide feedback for the bot',
+        'emoji': '⭐',
+        'command': '/rate',
+        'category': 'General'
+    },
+    'use_translate': {
+        'name': 'Use Translation',
+        'description': 'Can use right-click translation feature',
+        'emoji': '🌐',
+        'command': 'Right-click → Translate Message',
+        'category': 'General'
     }
 }
 
