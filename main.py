@@ -248,7 +248,13 @@ logger = logging.getLogger(__name__)
 
 def load_channels() -> Dict[str, dict]:
     """Load channel language configurations from file.
-    Format: {channel_id: {'primary': 'lang_code', 'secondary': 'lang_code'}}
+    Format: {
+        channel_id: {
+            'primary': 'lang_code',
+            'secondary': 'lang_code' (optional),
+            'blacklisted_languages': ['lang1', 'lang2'] (optional)
+        }
+    }
     Or legacy format: {channel_id: 'lang_code'} which gets converted.
     """
     try:
@@ -259,12 +265,17 @@ def load_channels() -> Dict[str, dict]:
             for channel_id, value in data.items():
                 if isinstance(value, str):
                     # Legacy format: just a string language code
-                    converted_data[channel_id] = {'primary': value, 'secondary': None}
+                    converted_data[channel_id] = {
+                        'primary': value,
+                        'secondary': None,
+                        'blacklisted_languages': []
+                    }
                 elif isinstance(value, dict):
-                    # New format: dict with primary and optional secondary
+                    # New format: dict with primary and optional secondary + blacklist
                     converted_data[channel_id] = {
                         'primary': value.get('primary'),
-                        'secondary': value.get('secondary')
+                        'secondary': value.get('secondary'),
+                        'blacklisted_languages': value.get('blacklisted_languages', [])
                     }
                 else:
                     logger.warning(f"Unknown format for channel {channel_id}, skipping")
@@ -1046,10 +1057,12 @@ async def on_message(message: discord.Message):
     if isinstance(channel_config, dict):
         primary_lang = channel_config.get('primary')
         secondary_lang = channel_config.get('secondary')
+        blacklisted_languages = channel_config.get('blacklisted_languages', [])
     else:
         # Legacy support: if it's a string, treat it as primary only
         primary_lang = channel_config
         secondary_lang = None
+        blacklisted_languages = []
 
     if not primary_lang:
         return
@@ -1058,6 +1071,11 @@ async def on_message(message: discord.Message):
         detected = detect(content)
     except LangDetectException:
         logger.debug("Could not detect language")
+        return
+
+    # Check if detected language is blacklisted
+    if detected in blacklisted_languages:
+        logger.debug(f"Language '{detected}' is blacklisted in this channel, skipping translation")
         return
 
     # Check if languages are supported
@@ -1268,6 +1286,85 @@ class SecondaryLanguageSelect(discord.ui.Select):
             await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
+class BlacklistLanguageSelect(discord.ui.Select):
+    """Multi-select dropdown menu for blacklisting languages (optional)."""
+    
+    def __init__(self, supported_langs):
+        options = [
+            discord.SelectOption(
+                label=f"{name} ({code})",
+                value=code,
+                description=f"Don't translate {name} messages"
+            ) for code, name in supported_langs.items()
+        ]
+        super().__init__(
+            placeholder="Choose languages to ignore (optional)...",
+            min_values=0,
+            max_values=min(10, len(options)),  # Max 10 blacklisted languages
+            options=options,
+            custom_id="blacklist_lang_select"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        guild_id = str(interaction.guild.id)
+        if not has_permission(interaction.user, guild_id):
+            emb = make_embed(
+                title='Permission Denied',
+                description='⚠️ You need proper permissions to use this command.\n\nRequired: Server Owner, Administrator, or an allowed role.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        try:
+            blacklisted = self.values
+            
+            # Check if primary or secondary language is in blacklist
+            conflicts = []
+            if self.view.primary_lang and self.view.primary_lang in blacklisted:
+                conflicts.append(f"Primary ({SUPPORTED[self.view.primary_lang]})")
+            if self.view.secondary_lang and self.view.secondary_lang in blacklisted:
+                conflicts.append(f"Secondary ({SUPPORTED[self.view.secondary_lang]})")
+            
+            if conflicts:
+                emb = make_embed(
+                    title='Invalid Selection',
+                    description=f'⚠️ You cannot blacklist your channel languages!\n\nConflicts: {", ".join(conflicts)}\n\nPlease remove them from the blacklist.',
+                    color=discord.Color.orange()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+            
+            self.view.blacklisted_languages = blacklisted
+            
+            # Update the embed to show all selections
+            primary_text = f'{SUPPORTED[self.view.primary_lang]} ({self.view.primary_lang})' if self.view.primary_lang else 'Not selected'
+            secondary_text = f'{SUPPORTED[self.view.secondary_lang]} ({self.view.secondary_lang})' if self.view.secondary_lang else 'None'
+            
+            blacklist_text = 'None'
+            if blacklisted:
+                blacklist_names = [f'{SUPPORTED[code]} ({code})' for code in blacklisted]
+                blacklist_text = ', '.join(blacklist_names)
+            
+            emb = make_embed(
+                title='Set Languages',
+                description=f'✅ **Primary Language:** {primary_text}\n' +
+                           f'✅ **Secondary Language:** {secondary_text}\n' +
+                           f'🚫 **Blacklisted Languages:** {blacklist_text}\n\n' +
+                           '➡️ Click **Save** to confirm.',
+                color=discord.Color.blurple()
+            )
+            await interaction.response.edit_message(embed=emb, view=self.view)
+        except Exception as e:
+            logger.error(f"Error in BlacklistLanguageSelect callback: {e}")
+            emb = make_embed(
+                title='Error',
+                description=f'❌ Failed to select languages: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
 class DualLanguageView(discord.ui.View):
     """View containing dual language selection dropdowns and save button."""
     
@@ -1276,8 +1373,10 @@ class DualLanguageView(discord.ui.View):
         self.channel = channel
         self.primary_lang = None
         self.secondary_lang = None
+        self.blacklisted_languages = []
         self.add_item(PrimaryLanguageSelect(SUPPORTED))
         self.add_item(SecondaryLanguageSelect(SUPPORTED))
+        self.add_item(BlacklistLanguageSelect(SUPPORTED))
     
     @discord.ui.button(label='Save', style=discord.ButtonStyle.green, emoji='💾', custom_id='save_languages')
     async def save_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1304,7 +1403,8 @@ class DualLanguageView(discord.ui.View):
             channel_id = str(self.channel.id)
             channel_langs[channel_id] = {
                 'primary': self.primary_lang,
-                'secondary': self.secondary_lang
+                'secondary': self.secondary_lang,
+                'blacklisted_languages': self.blacklisted_languages
             }
             await save_channels(channel_langs)
             
@@ -1315,12 +1415,24 @@ class DualLanguageView(discord.ui.View):
             
             if self.secondary_lang:
                 secondary_name = SUPPORTED[self.secondary_lang]
-                description += f'**Secondary Language:** {secondary_name} ({self.secondary_lang})\n\n'
-                description += f'📌 Messages in **{primary_name}** will be translated to **{secondary_name}**\n'
-                description += f'📌 Messages in **{secondary_name}** will be translated to **{primary_name}**\n'
-                description += f'📌 Messages in other languages will be translated to **{primary_name}** (primary)'
+                description += f'**Secondary Language:** {secondary_name} ({self.secondary_lang})\n'
+            
+            if self.blacklisted_languages:
+                blacklist_names = [f'{SUPPORTED[code]} ({code})' for code in self.blacklisted_languages]
+                description += f'**Blacklisted Languages:** {", ".join(blacklist_names)}\n'
+            
+            description += '\n📝 **How it works:**\n'
+            
+            if self.blacklisted_languages:
+                blacklist_display = ', '.join([SUPPORTED[code] for code in self.blacklisted_languages])
+                description += f'� **{blacklist_display}** messages will NOT be translated\n'
+            
+            if self.secondary_lang:
+                description += f'�📌 Messages in **{primary_name}** → Translated to **{SUPPORTED[self.secondary_lang]}**\n'
+                description += f'📌 Messages in **{SUPPORTED[self.secondary_lang]}** → Translated to **{primary_name}**\n'
+                description += f'📌 Other languages → Translated to **{primary_name}** (primary)'
             else:
-                description += f'\n📌 All messages will be translated to **{primary_name}**'
+                description += f'📌 All messages (except blacklisted) → Translated to **{primary_name}**'
             
             emb = make_embed(
                 title='Languages Set',
@@ -2599,7 +2711,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.0"
+        bot_info += f"**Version:** Kingdom-77 v1.0"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
@@ -2837,9 +2949,16 @@ async def channel_setlang(interaction: discord.Interaction, channel: str = None)
                        'Main language for translation.\n\n' +
                        '**2️⃣ Secondary Language** (Optional)\n' +
                        'Enable bidirectional translation between two languages.\n\n' +
-                       '📝 **How it works:**\n' +
+                       '**� Blacklist Languages** (Optional)\n' +
+                       'Choose languages to NOT translate (they will be ignored).\n\n' +
+                       '�📝 **Example:**\n' +
+                       '• Primary: Arabic (ar)\n' +
+                       '• Blacklist: English (en)\n' +
+                       '• Result: English messages stay untranslated, all other languages → Arabic\n\n' +
+                       '**How it works:**\n' +
                        '• With only primary: All messages → Primary language\n' +
                        '• With both: Messages swap between the two languages\n' +
+                       '• With blacklist: Blacklisted languages are not translated\n' +
                        '• Other languages → Always translate to primary',
             color=discord.Color.blurple()
         )
