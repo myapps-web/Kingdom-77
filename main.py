@@ -884,11 +884,13 @@ async def on_ready():
     logger.info(f"Bot is in {len(bot.guilds)} server(s)")
     
     # Load data from files
-    global channel_langs, bot_ratings, allowed_roles, servers_data
+    global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
     loop = asyncio.get_event_loop()
     channel_langs = await loop.run_in_executor(None, load_channels)
     bot_ratings = await loop.run_in_executor(None, load_ratings)
     allowed_roles = await loop.run_in_executor(None, load_allowed_roles)
+    role_languages = await loop.run_in_executor(None, load_role_languages)
+    role_permissions = await loop.run_in_executor(None, load_role_permissions)
     servers_data = await loop.run_in_executor(None, load_servers)
     
     # Update server tracking for current guilds
