@@ -2920,15 +2920,30 @@ async def debug_info(interaction: discord.Interaction):
         
         if guild_configs:
             info.append("**Configured channels in this server:**")
-            for ch_id, lang in list(guild_configs.items())[:10]:
+            for ch_id, lang_config in list(guild_configs.items())[:10]:
                 try:
                     ch = interaction.guild.get_channel(int(ch_id))
-                    if ch:
-                        info.append(f"• {ch.mention}: {SUPPORTED.get(lang, lang)}")
+                    # Handle both dict and string formats
+                    if isinstance(lang_config, dict):
+                        primary = lang_config.get('primary', 'unknown')
+                        secondary = lang_config.get('secondary')
+                        quality = lang_config.get('translation_quality', 'fast')
+                        
+                        lang_display = f"{SUPPORTED.get(primary, primary)}"
+                        if secondary:
+                            lang_display += f" + {SUPPORTED.get(secondary, secondary)}"
+                        lang_display += f" ({quality})"
                     else:
-                        info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)} (channel not found)")
-                except Exception:
-                    info.append(f"• Channel ID {ch_id}: {SUPPORTED.get(lang, lang)}")
+                        # Legacy string format
+                        lang_display = SUPPORTED.get(lang_config, lang_config)
+                    
+                    if ch:
+                        info.append(f"• {ch.mention}: {lang_display}")
+                    else:
+                        info.append(f"• Channel ID {ch_id}: {lang_display} (channel not found)")
+                except Exception as e:
+                    info.append(f"• Channel ID {ch_id}: Error loading config")
+                    logger.error(f"Error displaying channel {ch_id}: {e}")
             
             if len(guild_configs) > 10:
                 info.append(f"... and {len(guild_configs) - 10} more")
@@ -3136,12 +3151,33 @@ async def channel_removelang(interaction: discord.Interaction, channel: str = No
         channel_id = str(target_channel.id)
         
         if channel_id in channel_langs:
-            old_lang = channel_langs[channel_id]
-            lang_name = SUPPORTED.get(old_lang, old_lang)
-            flag_emoji = {
-                'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
-                'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
-            }.get(old_lang, '🌐')
+            old_lang_config = channel_langs[channel_id]
+            
+            # Handle both dict and string formats
+            if isinstance(old_lang_config, dict):
+                primary = old_lang_config.get('primary', 'unknown')
+                secondary = old_lang_config.get('secondary')
+                
+                lang_name = SUPPORTED.get(primary, primary)
+                if secondary:
+                    lang_name += f" + {SUPPORTED.get(secondary, secondary)}"
+                
+                flag_emoji = {
+                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+                }.get(primary, '🌐')
+                
+                lang_code_display = primary
+                if secondary:
+                    lang_code_display += f", {secondary}"
+            else:
+                # Legacy string format
+                lang_name = SUPPORTED.get(old_lang_config, old_lang_config)
+                flag_emoji = {
+                    'ar': '🇸🇦', 'en': '🇬🇧', 'tr': '🇹🇷',
+                    'ja': '🇯🇵', 'fr': '🇫🇷', 'ko': '🇰🇷', 'it': '🇮🇹', 'zh-CN': '🇨🇳'
+                }.get(old_lang_config, '🌐')
+                lang_code_display = old_lang_config
             
             del channel_langs[channel_id]
             await save_channels(channel_langs)
@@ -3153,7 +3189,7 @@ async def channel_removelang(interaction: discord.Interaction, channel: str = No
             )
             emb.add_field(
                 name='🗑️ Removed Language',
-                value=f'{flag_emoji} **{lang_name}** (`{old_lang}`)',
+                value=f'{flag_emoji} **{lang_name}** (`{lang_code_display}`)',
                 inline=False
             )
             emb.add_field(
