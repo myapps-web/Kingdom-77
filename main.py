@@ -3393,4 +3393,16 @@ if __name__ == '__main__':
     if not TOKEN:
         logger.error('TOKEN is not set. Put it in Replit Secrets as TOKEN or .env locally.')
         exit(1)
+    
+    # Start keep-alive server for Replit (24/7 uptime)
+    try:
+        from keep_alive import keep_alive
+        keep_alive()
+        logger.info("✅ Keep-alive server enabled for 24/7 uptime")
+    except ImportError:
+        logger.warning("⚠️ Keep-alive module not found. Bot will stop when Replit goes idle.")
+        logger.warning("   Install Flask: pip install flask")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not start keep-alive server: {e}")
+    
     bot.run(TOKEN)
