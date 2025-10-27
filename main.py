@@ -2755,7 +2755,7 @@ async def ping(interaction: discord.Interaction):
         color=color
     )
     emb.set_footer(text="Latency may vary • Measures websocket heartbeat latency")
-    await interaction.response.send_message(embed=emb, ephemeral=False)
+    await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
 @bot.tree.command(name='botstats', description='Display bot statistics and information')
@@ -2832,12 +2832,12 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.1"
+        bot_info += f"**Version:** Kingdom-77 v2.2"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
         
-        await interaction.response.send_message(embed=emb, ephemeral=False)
+        await interaction.response.send_message(embed=emb, ephemeral=True)
         
     except Exception as e:
         logger.error(f"Error in botstats command: {e}")
@@ -3378,7 +3378,7 @@ async def ratings(interaction: discord.Interaction):
     )
     emb.set_footer(text="Thank you to everyone who rated the bot!")
     
-    await interaction.response.send_message(embed=emb, ephemeral=False)
+    await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
 # ============================================================================
