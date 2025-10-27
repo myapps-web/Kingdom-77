@@ -1519,7 +1519,8 @@ class DualLanguageView(discord.ui.View):
             channel_langs[channel_id] = {
                 'primary': self.primary_lang,
                 'secondary': self.secondary_lang,
-                'blacklisted_languages': self.blacklisted_languages
+                'blacklisted_languages': self.blacklisted_languages,
+                'translation_quality': 'fast'  # Default quality mode
             }
             await save_channels(channel_langs)
             
@@ -1615,7 +1616,12 @@ class LanguageSelect(discord.ui.Select):
         try:
             code = self.values[0]
             channel_id = str(self.view.channel.id)
-            channel_langs[channel_id] = {'primary': code, 'secondary': None}
+            channel_langs[channel_id] = {
+                'primary': code,
+                'secondary': None,
+                'blacklisted_languages': [],
+                'translation_quality': 'fast'
+            }
             await save_channels(channel_langs)
             emb = make_embed(
                 title='Language set',
