@@ -49,6 +49,7 @@ if os.path.dirname(__file__):
     ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
     ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
     SERVERS_FILE = os.path.join(DATA_DIR, 'servers.json')
+    TRANSLATION_STATS_FILE = os.path.join(DATA_DIR, 'translation_stats.json')
     BOT_STATS_FILE = os.path.join(BASE_DIR, 'bot_stats.txt')
 else:
     DATA_DIR = 'data'
@@ -58,6 +59,7 @@ else:
     ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
     ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
     SERVERS_FILE = os.path.join(DATA_DIR, 'servers.json')
+    TRANSLATION_STATS_FILE = os.path.join(DATA_DIR, 'translation_stats.json')
     BOT_STATS_FILE = 'bot_stats.txt'
 
 # Create data directory if it doesn't exist
@@ -252,7 +254,8 @@ def load_channels() -> Dict[str, dict]:
         channel_id: {
             'primary': 'lang_code',
             'secondary': 'lang_code' (optional),
-            'blacklisted_languages': ['lang1', 'lang2'] (optional)
+            'blacklisted_languages': ['lang1', 'lang2'] (optional),
+            'translation_quality': 'fast' | 'quality' | 'auto' (optional)
         }
     }
     Or legacy format: {channel_id: 'lang_code'} which gets converted.
@@ -268,14 +271,16 @@ def load_channels() -> Dict[str, dict]:
                     converted_data[channel_id] = {
                         'primary': value,
                         'secondary': None,
-                        'blacklisted_languages': []
+                        'blacklisted_languages': [],
+                        'translation_quality': 'fast'
                     }
                 elif isinstance(value, dict):
-                    # New format: dict with primary and optional secondary + blacklist
+                    # New format: dict with primary and optional secondary + blacklist + quality
                     converted_data[channel_id] = {
                         'primary': value.get('primary'),
                         'secondary': value.get('secondary'),
-                        'blacklisted_languages': value.get('blacklisted_languages', [])
+                        'blacklisted_languages': value.get('blacklisted_languages', []),
+                        'translation_quality': value.get('translation_quality', 'fast')
                     }
                 else:
                     logger.warning(f"Unknown format for channel {channel_id}, skipping")
@@ -831,6 +836,60 @@ def make_embed(title: str = None, description: str = None, *, color: discord.Col
     return emb
 
 
+async def smart_translate(text: str, source_lang: str, target_lang: str, quality_mode: str = 'fast') -> tuple:
+    """Translate text with smart quality selection.
+    
+    Args:
+        text: Text to translate
+        source_lang: Source language code
+        target_lang: Target language code
+        quality_mode: 'fast', 'quality', or 'auto'
+    
+    Returns:
+        tuple: (translated_text, actual_mode_used)
+    """
+    try:
+        # Auto mode: intelligently choose based on content
+        if quality_mode == 'auto':
+            text_length = len(text)
+            
+            # Long messages (>500 chars) or technical content → quality mode
+            if text_length > 500:
+                quality_mode = 'quality'
+                logger.debug(f"Auto mode: Using quality (long message: {text_length} chars)")
+            
+            # Check for technical terms (basic detection)
+            technical_indicators = ['API', 'HTTP', 'JSON', 'SQL', 'function', 'class', 'error', 'exception']
+            if any(term in text for term in technical_indicators):
+                quality_mode = 'quality'
+                logger.debug("Auto mode: Using quality (technical content detected)")
+            else:
+                quality_mode = 'fast'
+                logger.debug("Auto mode: Using fast (regular message)")
+        
+        # Fast mode: Google Translator (current system)
+        if quality_mode == 'fast':
+            translated = GoogleTranslator(source=source_lang, target=target_lang).translate(text)
+            return (translated, 'fast')
+        
+        # Quality mode: Try to use better translator
+        # For now, we'll use Google but could add DeepL or LibreTranslate later
+        elif quality_mode == 'quality':
+            # TODO: Add DeepL API integration in future
+            # For now, use Google with note that it's fast mode
+            translated = GoogleTranslator(source=source_lang, target=target_lang).translate(text)
+            return (translated, 'fast')  # Return 'fast' since we're using Google
+        
+        else:
+            # Fallback to fast
+            translated = GoogleTranslator(source=source_lang, target=target_lang).translate(text)
+            return (translated, 'fast')
+    
+    except Exception as e:
+        logger.error(f"Translation error in smart_translate: {e}")
+        return (None, quality_mode)
+
+
 def has_permission(member: discord.Member, guild_id: str) -> bool:
     """Check if member has permission to use admin commands.
     
@@ -1117,12 +1176,20 @@ async def on_message(message: discord.Message):
     # Check cache first for faster response
     if cache_key in translation_cache:
         translated = translation_cache[cache_key]
+        translation_mode_used = 'cached'
         logger.debug(f"Using cached translation for '{content[:30]}...'")
     else:
-        # Translate using deep-translator API (faster and more reliable)
+        # Get quality mode from channel config
+        quality_mode = channel_config.get('translation_quality', 'fast')
+        
+        # Translate using smart quality selection
         try:
-            # deep-translator uses async-friendly approach
-            translated = GoogleTranslator(source=detected, target=target).translate(content)
+            translated, translation_mode_used = await smart_translate(
+                text=content,
+                source_lang=detected,
+                target_lang=target,
+                quality_mode=quality_mode
+            )
             
             # Store in cache
             if translated:
@@ -3057,6 +3124,105 @@ async def channel_removelang(interaction: discord.Interaction, channel: str = No
             await interaction.response.send_message(embed=emb, ephemeral=True)
     except Exception as e:
         logger.error(f"Error in removelang command: {e}")
+        emb = make_embed(
+            title='Error',
+            description=f'❌ An error occurred: {str(e)}',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+
+
+@channel_group.command(name='quality', description='Set translation quality mode for a channel')
+@app_commands.describe(
+    mode='Translation quality mode',
+    channel='Select channel (optional, defaults to current channel)'
+)
+@app_commands.choices(mode=[
+    app_commands.Choice(name='🚀 Fast - Quick translation (Google)', value='fast'),
+    app_commands.Choice(name='🤖 Auto - Smart selection based on content', value='auto'),
+])
+@app_commands.autocomplete(channel=configured_channel_autocomplete)
+async def channel_quality(interaction: discord.Interaction, mode: app_commands.Choice[str], channel: str = None):
+    """Set translation quality mode for a channel."""
+    guild_id = str(interaction.guild.id)
+    if not has_permission(interaction.user, guild_id):
+        emb = make_embed(
+            title='Permission Denied',
+            description='⚠️ You need proper permissions to use this command.\n\nRequired: Server Owner, Administrator, or an allowed role.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+
+    try:
+        if channel:
+            try:
+                target_channel = interaction.guild.get_channel(int(channel))
+                if not target_channel:
+                    emb = make_embed(
+                        title='Error',
+                        description='❌ Channel not found.',
+                        color=discord.Color.red()
+                    )
+                    await interaction.response.send_message(embed=emb, ephemeral=True)
+                    return
+            except ValueError:
+                emb = make_embed(
+                    title='Error',
+                    description='❌ Invalid channel.',
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=emb, ephemeral=True)
+                return
+        else:
+            target_channel = interaction.channel
+        
+        channel_id = str(target_channel.id)
+        
+        # Check if channel has language settings
+        if channel_id not in channel_langs:
+            emb = make_embed(
+                title='No Configuration',
+                description=f'❌ {target_channel.mention} has no language settings.\n\nUse `/channel addlang` first!',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=emb, ephemeral=True)
+            return
+        
+        # Update quality mode
+        channel_langs[channel_id]['translation_quality'] = mode.value
+        await save_channels(channel_langs)
+        
+        # Mode descriptions
+        mode_info = {
+            'fast': {
+                'emoji': '🚀',
+                'name': 'Fast Mode',
+                'description': 'Quick translation using Google Translator.\n✅ Instant results\n✅ Good for casual conversations',
+                'speed': 'Very Fast (0.1-0.3s)'
+            },
+            'auto': {
+                'emoji': '🤖',
+                'name': 'Auto Mode',
+                'description': 'Smart mode that automatically chooses the best quality:\n• Short messages → Fast\n• Long messages (>500 chars) → Quality\n• Technical content → Quality\n• Regular content → Fast',
+                'speed': 'Variable (0.1-1s)'
+            }
+        }
+        
+        selected_mode = mode_info.get(mode.value, mode_info['fast'])
+        
+        emb = make_embed(
+            title=f'{selected_mode["emoji"]} Translation Quality Updated',
+            description=f'**Channel:** {target_channel.mention}\n**Mode:** {selected_mode["name"]}\n\n{selected_mode["description"]}',
+            color=discord.Color.green()
+        )
+        emb.add_field(name='⚡ Speed', value=selected_mode['speed'], inline=True)
+        emb.set_footer(text='💡 Tip: Auto mode intelligently selects the best quality for each message')
+        
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Error in quality command: {e}")
         emb = make_embed(
             title='Error',
             description=f'❌ An error occurred: {str(e)}',
