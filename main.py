@@ -26,7 +26,7 @@ from deep_translator import GoogleTranslator
 import discord
 import asyncio
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 
 # ============================================================================
@@ -624,6 +624,122 @@ Total Allowed Roles:          {total_allowed_roles}
         logger.error(f"Error updating bot stats file: {e}")
 
 
+async def cleanup_old_server_data():
+    """Clean up data from servers that left more than 7 days ago.
+    Removes channels, roles, permissions, and role languages for old servers.
+    """
+    from datetime import datetime, timedelta
+    
+    try:
+        if 'servers_data' not in globals():
+            logger.warning("Cannot cleanup: servers_data not loaded")
+            return
+        
+        current_time = datetime.utcnow()
+        cleanup_threshold = timedelta(days=7)
+        
+        cleaned_servers = []
+        cleaned_channels = 0
+        cleaned_roles = 0
+        cleaned_permissions = 0
+        cleaned_role_langs = 0
+        
+        # Find servers that left more than 7 days ago
+        for guild_id, server_info in list(servers_data.items()):
+            if not server_info.get('active', True):
+                left_at_str = server_info.get('left_at')
+                if left_at_str:
+                    try:
+                        left_at = datetime.fromisoformat(left_at_str)
+                        time_since_left = current_time - left_at
+                        
+                        if time_since_left >= cleanup_threshold:
+                            # Mark for cleanup
+                            server_name = server_info.get('name', 'Unknown')
+                            cleaned_servers.append((guild_id, server_name))
+                            
+                            logger.debug(f"Cleaning data for server: {server_name} (left {time_since_left.days} days ago)")
+                            
+                            # Clean channel language configurations
+                            # We need to check which channels belong to this guild
+                            channels_to_remove = []
+                            for ch_id in list(channel_langs.keys()):
+                                try:
+                                    channel = bot.get_channel(int(ch_id))
+                                    # If channel doesn't exist or belongs to the guild being cleaned
+                                    if channel is None:
+                                        channels_to_remove.append(ch_id)
+                                    elif str(channel.guild.id) == guild_id:
+                                        channels_to_remove.append(ch_id)
+                                except (ValueError, AttributeError):
+                                    # Invalid channel ID, remove it
+                                    channels_to_remove.append(ch_id)
+                            
+                            for ch_id in channels_to_remove:
+                                if ch_id in channel_langs:
+                                    del channel_langs[ch_id]
+                                    cleaned_channels += 1
+                            
+                            # Clean allowed roles
+                            if guild_id in allowed_roles:
+                                cleaned_roles += len(allowed_roles[guild_id])
+                                del allowed_roles[guild_id]
+                            
+                            # Clean role permissions
+                            if guild_id in role_permissions:
+                                for role_id, perms in role_permissions[guild_id].items():
+                                    cleaned_permissions += len(perms) if isinstance(perms, list) else 1
+                                del role_permissions[guild_id]
+                            
+                            # Clean role languages
+                            if guild_id in role_languages:
+                                cleaned_role_langs += len(role_languages[guild_id])
+                                del role_languages[guild_id]
+                            
+                    except ValueError as e:
+                        logger.warning(f"Invalid date format for guild {guild_id}: {e}")
+        
+        # Save all changes if any cleanup was done
+        if cleaned_servers:
+            await save_channels(channel_langs)
+            await save_allowed_roles(allowed_roles)
+            await save_role_permissions(role_permissions)
+            await save_role_languages(role_languages)
+            update_bot_stats()
+            
+            logger.info(f"🧹 Cleanup completed: {len(cleaned_servers)} servers, "
+                       f"{cleaned_channels} channels, {cleaned_roles} roles, "
+                       f"{cleaned_permissions} permission entries, {cleaned_role_langs} role languages")
+            
+            for guild_id, server_name in cleaned_servers:
+                logger.info(f"  ├─ Cleaned data for: {server_name} (ID: {guild_id})")
+        else:
+            logger.debug("✅ No old server data to cleanup (all servers active or within 7-day grace period)")
+            
+    except Exception as e:
+        logger.error(f"Error during cleanup: {e}")
+        
+        # Save all changes if any cleanup was done
+        if cleaned_servers:
+            await save_channels(channel_langs)
+            await save_allowed_roles(allowed_roles)
+            await save_role_permissions(role_permissions)
+            await save_role_languages(role_languages)
+            update_bot_stats()
+            
+            logger.info(f"🧹 Cleanup completed: {len(cleaned_servers)} servers, "
+                       f"{cleaned_channels} channels, {cleaned_roles} roles, "
+                       f"{cleaned_permissions} permissions, {cleaned_role_langs} role languages")
+            
+            for guild_id, server_name in cleaned_servers:
+                logger.info(f"  ├─ Cleaned data for: {server_name} (ID: {guild_id})")
+        else:
+            logger.debug("No old server data to cleanup")
+            
+    except Exception as e:
+        logger.error(f"Error during cleanup: {e}")
+
+
 # ============================================================================
 # BOT INITIALIZATION
 # ============================================================================
@@ -654,6 +770,24 @@ view_group = app_commands.Group(name="view", description="👁️ View bot infor
 bot.tree.add_command(channel_group)
 bot.tree.add_command(role_group)
 bot.tree.add_command(view_group)
+
+
+# ============================================================================
+# BACKGROUND TASKS
+# ============================================================================
+
+@tasks.loop(hours=24)
+async def daily_cleanup_task():
+    """Daily task to cleanup data from servers that left more than 7 days ago."""
+    logger.info("🧹 Running daily cleanup task...")
+    await cleanup_old_server_data()
+
+
+@daily_cleanup_task.before_loop
+async def before_daily_cleanup():
+    """Wait until bot is ready before starting the cleanup task."""
+    await bot.wait_until_ready()
+    logger.info("Daily cleanup task initialized")
 
 
 # ============================================================================
@@ -779,6 +913,18 @@ async def on_ready():
         logger.info(f"✅ Server tracking updated: {len([s for s in servers_data.values() if s.get('active')])} active servers")
     except Exception as e:
         logger.error(f"Error updating server tracking: {e}")
+    
+    # Run initial cleanup for old servers
+    try:
+        logger.info("Running initial cleanup check...")
+        await cleanup_old_server_data()
+    except Exception as e:
+        logger.error(f"Error during initial cleanup: {e}")
+    
+    # Start daily cleanup task
+    if not daily_cleanup_task.is_running():
+        daily_cleanup_task.start()
+        logger.info("✅ Daily cleanup task started")
     
     # Log application commands
     try:
