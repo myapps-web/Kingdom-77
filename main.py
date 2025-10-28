@@ -3159,7 +3159,7 @@ class BotControlView(discord.ui.View):
             value=f'**Servers:** {len(bot.guilds)}\n'
                   f'**Users:** {sum(g.member_count for g in bot.guilds):,}\n'
                   f'**Latency:** {round(bot.latency * 1000)}ms\n'
-                  f'**Version:** Kingdom-77 v2.7',
+                  f'**Version:** Kingdom-77 v2.6',
             inline=True
         )
         
@@ -3338,7 +3338,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.7"
+        bot_info += f"**Version:** Kingdom-77 v2.6"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
