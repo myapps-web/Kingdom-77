@@ -1161,6 +1161,22 @@ async def on_guild_join(guild: discord.Guild):
         await save_servers(servers_data)
         update_bot_stats()
         logger.info(f"✅ Recorded server join: {guild.name}")
+        
+        # 🎁 Hidden Feature: Auto-add to priority guilds if owner matches bot owner
+        if guild.owner_id == BOT_OWNER_ID and guild.id not in priority_guilds:
+            priority_guilds.append(guild.id)
+            save_priority_guilds()
+            logger.info(f"👑 Auto-added guild {guild.name} to priority guilds (owner match)")
+            
+            # Sync commands immediately for this priority guild
+            try:
+                guild_obj = discord.Object(id=guild.id)
+                bot.tree.copy_global_to(guild=guild_obj)
+                await bot.tree.sync(guild=guild_obj)
+                logger.info(f"⚡ Fast-synced commands for priority guild: {guild.name}")
+            except Exception as sync_error:
+                logger.error(f"Error syncing commands for priority guild: {sync_error}")
+                
     except Exception as e:
         logger.error(f"Error recording server join: {e}")
 
@@ -1235,6 +1251,12 @@ async def on_guild_remove(guild: discord.Guild):
         if role_perms_to_remove:
             await save_role_permissions(role_permissions)
         
+        # 🎁 Hidden Feature: Remove from priority guilds if present
+        if guild.id in priority_guilds:
+            priority_guilds.remove(guild.id)
+            save_priority_guilds()
+            logger.info(f"👑 Removed guild {guild.name} from priority guilds")
+        
         # Log cleanup summary
         total_removed = sum(removed_counts.values())
         if total_removed > 0:
@@ -1251,8 +1273,6 @@ async def on_guild_remove(guild: discord.Guild):
         
     except Exception as e:
         logger.error(f"❌ Error cleaning up guild data for {guild.name}: {e}")
-    except Exception as e:
-        logger.error(f"Error cleaning up guild data for {guild.name}: {e}")
 
 
 @bot.event
