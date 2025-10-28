@@ -36,9 +36,9 @@ from discord.ext import commands, tasks
 # Load environment variables
 load_dotenv()
 
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("TOKEN") or os.getenv("DISCORD_TOKEN")
 GUILD_ID = os.getenv("GUILD_ID")
-BOT_OWNER_ID = 1234567890  # ⚠️ REPLACE WITH YOUR DISCORD USER ID
+BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "1234567890"))  # Will use env var if available
 
 # Bot control state
 bot_disabled = False  # When True, all commands except /control are disabled
