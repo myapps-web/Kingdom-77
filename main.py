@@ -3401,11 +3401,7 @@ async def help(interaction: discord.Interaction):
         owner_commands = [
             '',
             '**🎛️ Owner Commands** *Owner Only*',
-            '`/dashboard` - Complete bot control panel',
-            '  • Enable/Disable bot',
-            '  • Sync commands globally',
-            '  • Manage priority guilds',
-            '  • Monitor bot status'
+            '`/dashboard` - Bot control panel'
         ]
         commands_list.extend(owner_commands)
     
@@ -3413,8 +3409,6 @@ async def help(interaction: discord.Interaction):
     
     if is_admin:
         desc += '\n\n**💡 Tip:** Commands are organized in groups for easier navigation!'
-    if is_owner:
-        desc += '\n\n**⚡ Priority Guilds:** Use `/dashboard` to add servers for instant command sync!'
     
     emb = make_embed(title='📚 Bot Commands', description=desc)
     emb.set_footer(text="Kingdom-77 v2.6 • Use autocomplete to easily select options!")
