@@ -1283,63 +1283,67 @@ async def on_guild_remove(guild: discord.Guild):
 @bot.event
 async def on_message(message: discord.Message):
     """Handle message translation based on channel language settings with dual language support."""
-    # Check if bot is disabled
-    if bot_disabled:
-        return
-    
-    # Ignore bots and webhooks
-    if message.author.bot or message.webhook_id:
-        return
-
-    channel_id = str(message.channel.id)
-    channel_config = channel_langs.get(channel_id)
-    if not channel_config:
-        return
-
-    content = message.content.strip()
-    if not content:
-        return
-
-    # Extract primary and secondary languages
-    if isinstance(channel_config, dict):
-        primary_lang = channel_config.get('primary')
-        secondary_lang = channel_config.get('secondary')
-        blacklisted_languages = channel_config.get('blacklisted_languages', [])
-    else:
-        # Legacy support: if it's a string, treat it as primary only
-        primary_lang = channel_config
-        secondary_lang = None
-        blacklisted_languages = []
-
-    if not primary_lang:
-        return
-
     try:
-        detected = detect(content)
-    except LangDetectException:
-        logger.debug("Could not detect language")
-        return
+        # Check if bot is disabled
+        if bot_disabled:
+            return
+        
+        # Ignore bots and webhooks
+        if message.author.bot or message.webhook_id:
+            return
 
-    # Check if detected language is blacklisted
-    if detected in blacklisted_languages:
-        logger.debug(f"Language '{detected}' is blacklisted in this channel, skipping translation")
-        return
+        channel_id = str(message.channel.id)
+        channel_config = channel_langs.get(channel_id)
+        if not channel_config:
+            return
 
-    # Check if languages are supported
-    if primary_lang not in SUPPORTED:
-        logger.warning(f"Primary language '{primary_lang}' not in SUPPORTED list")
-        return
-    
-    if secondary_lang and secondary_lang not in SUPPORTED:
-        logger.warning(f"Secondary language '{secondary_lang}' not in SUPPORTED list")
-        secondary_lang = None
+        content = message.content.strip()
+        if not content:
+            return
 
-    # Determine target language based on detected language
-    target = None
-    
-    if secondary_lang:
-        # Dual language mode: bidirectional translation between primary and secondary
-        if detected == primary_lang:
+        # Extract primary and secondary languages
+        if isinstance(channel_config, dict):
+            primary_lang = channel_config.get('primary')
+            secondary_lang = channel_config.get('secondary')
+            blacklisted_languages = channel_config.get('blacklisted_languages', [])
+        else:
+            # Legacy support: if it's a string, treat it as primary only
+            primary_lang = channel_config
+            secondary_lang = None
+            blacklisted_languages = []
+
+        if not primary_lang:
+            return
+
+        try:
+            detected = detect(content)
+        except LangDetectException:
+            logger.debug("Could not detect language")
+            return
+        except Exception as e:
+            logger.error(f"Language detection error: {e}")
+            return
+
+        # Check if detected language is blacklisted
+        if detected in blacklisted_languages:
+            logger.debug(f"Language '{detected}' is blacklisted in this channel, skipping translation")
+            return
+
+        # Check if languages are supported
+        if primary_lang not in SUPPORTED:
+            logger.warning(f"Primary language '{primary_lang}' not in SUPPORTED list")
+            return
+        
+        if secondary_lang and secondary_lang not in SUPPORTED:
+            logger.warning(f"Secondary language '{secondary_lang}' not in SUPPORTED list")
+            secondary_lang = None
+
+        # Determine target language based on detected language
+        target = None
+        
+        if secondary_lang:
+            # Dual language mode: bidirectional translation between primary and secondary
+            if detected == primary_lang:
             # Message is in primary → translate to secondary
             target = secondary_lang
             logger.debug(f"Detected primary language ({primary_lang}), translating to secondary ({secondary_lang})")
@@ -1425,6 +1429,9 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
     except Exception:
         pass
+    
+    except Exception as e:
+        logger.error(f"❌ Error in on_message handler: {e}", exc_info=True)
 
 
 # ============================================================================
