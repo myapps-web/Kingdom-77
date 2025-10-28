@@ -781,7 +781,7 @@ servers_data = load_servers()
 
 # Translation cache for faster responses
 translation_cache = {}  # {(text_hash, source_lang, target_lang): translated_text}
-CACHE_MAX_SIZE = 1000  # Maximum cache entries
+CACHE_MAX_SIZE = 10000  # Maximum cache entries (increased for better performance)
 
 # Command Groups for organized slash commands
 channel_group = app_commands.Group(name="channel", description="📋 Manage channel language settings")
@@ -1201,12 +1201,15 @@ async def on_message(message: discord.Message):
             if translated:
                 translation_cache[cache_key] = translated
                 
-                # Clean cache if too large (remove 20% oldest entries)
+                # Smart cache cleaning: remove same amount of oldest unused entries as new ones added
                 if len(translation_cache) > CACHE_MAX_SIZE:
-                    remove_count = CACHE_MAX_SIZE // 5
-                    for _ in range(remove_count):
-                        translation_cache.pop(next(iter(translation_cache)))
-                    logger.debug(f"Cache cleaned: removed {remove_count} entries")
+                    # Calculate how many entries to remove (entries added beyond limit)
+                    excess_count = len(translation_cache) - CACHE_MAX_SIZE
+                    # Remove oldest entries (FIFO - First In First Out)
+                    for _ in range(excess_count):
+                        if translation_cache:  # Check if not empty
+                            translation_cache.pop(next(iter(translation_cache)))
+                    logger.debug(f"Cache cleaned: removed {excess_count} oldest entries")
                     
         except Exception as e:
             logger.error(f"Translation API error: {e}")
@@ -1792,11 +1795,12 @@ class TranslationLanguageView(discord.ui.View):
                     if translated:
                         translation_cache[cache_key] = translated
                         
-                        # Clean cache if needed
+                        # Smart cache cleaning: remove same amount of oldest unused entries as new ones added
                         if len(translation_cache) > CACHE_MAX_SIZE:
-                            remove_count = CACHE_MAX_SIZE // 5
-                            for _ in range(remove_count):
-                                translation_cache.pop(next(iter(translation_cache)))
+                            excess_count = len(translation_cache) - CACHE_MAX_SIZE
+                            for _ in range(excess_count):
+                                if translation_cache:
+                                    translation_cache.pop(next(iter(translation_cache)))
                 
                 if not translated:
                     emb = make_embed(
@@ -2590,10 +2594,12 @@ async def translate_message_context(interaction: discord.Interaction, message: d
                     if translated:
                         translation_cache[cache_key] = translated
                         
+                        # Smart cache cleaning: remove same amount of oldest unused entries as new ones added
                         if len(translation_cache) > CACHE_MAX_SIZE:
-                            remove_count = CACHE_MAX_SIZE // 5
-                            for _ in range(remove_count):
-                                translation_cache.pop(next(iter(translation_cache)))
+                            excess_count = len(translation_cache) - CACHE_MAX_SIZE
+                            for _ in range(excess_count):
+                                if translation_cache:
+                                    translation_cache.pop(next(iter(translation_cache)))
                 
                 if not translated:
                     emb = make_embed(
@@ -2785,7 +2791,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.3"
+        bot_info += f"**Version:** Kingdom-77 v2.4"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
