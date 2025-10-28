@@ -3359,11 +3359,13 @@ async def botstats(interaction: discord.Interaction):
 async def help(interaction: discord.Interaction):
     """Display help information with available commands."""
     is_admin = interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id
+    is_owner = interaction.user.id == BOT_OWNER_ID
     
     commands_list = [
         '**📋 Channel Commands** (`/channel`)',
-        '`/channel addlang [channel]` - Set default language',
-        '`/channel deletelang [channel]` - Remove language setting',
+        '`/channel setlang [channel]` - Set primary & secondary language',
+        '`/channel removelang [channel]` - Remove language setting',
+        '`/channel quality [channel]` - Change translation quality',
         '',
         '**👁️ View Commands** (`/view`)',
         '`/view lists` - Browse all information with filters',
@@ -3373,21 +3375,21 @@ async def help(interaction: discord.Interaction):
         '💡 *Requires role with assigned language*',
         '',
         '**⭐ Bot Info:**',
-        '`/rate` - Rate the bot',
-        '`/ratings` - View ratings',
-        '`/botstats` - View bot statistics',
-        '`/ping` - Check latency',
-        '`/help` - Show this help'
+        '`/rate` - Rate the bot (1-5 stars)',
+        '`/ratings` - View ratings statistics',
+        '`/botstats` - View comprehensive bot statistics',
+        '`/ping` - Check bot latency',
+        '`/help` - Show this help message'
     ]
     
     if is_admin:
         admin_commands = [
             '',
             '**🛡️ Role Commands** (`/role`) *Admin Only*',
-            '`/role perms <role>` - Grant bot permissions to role',
-            '`/role editperms <role>` - Edit/Revoke role permissions',
-            '`/role setlang <role> <language>` - Assign language',
-            '`/role removelang <role>` - Remove language',
+            '`/role add <role>` - Grant bot permissions to role',
+            '`/role remove <role>` - Revoke role permissions',
+            '`/role setlang <role> <language>` - Assign default language',
+            '`/role removelang <role>` - Remove language assignment',
             '',
             '**🔧 Admin Tools:**',
             '`/debug` - Show debug information',
@@ -3395,13 +3397,27 @@ async def help(interaction: discord.Interaction):
         ]
         commands_list.extend(admin_commands)
     
+    if is_owner:
+        owner_commands = [
+            '',
+            '**🎛️ Owner Commands** *Owner Only*',
+            '`/dashboard` - Complete bot control panel',
+            '  • Enable/Disable bot',
+            '  • Sync commands globally',
+            '  • Manage priority guilds',
+            '  • Monitor bot status'
+        ]
+        commands_list.extend(owner_commands)
+    
     desc = '\n'.join(commands_list)
     
     if is_admin:
         desc += '\n\n**💡 Tip:** Commands are organized in groups for easier navigation!'
+    if is_owner:
+        desc += '\n\n**⚡ Priority Guilds:** Use `/dashboard` to add servers for instant command sync!'
     
     emb = make_embed(title='📚 Bot Commands', description=desc)
-    emb.set_footer(text="Use autocomplete to easily select channels!")
+    emb.set_footer(text="Kingdom-77 v2.6 • Use autocomplete to easily select options!")
     await interaction.response.send_message(embed=emb, ephemeral=True)
 
 
