@@ -1167,20 +1167,25 @@ async def on_guild_join(guild: discord.Guild):
 
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
-    """Log when the bot is removed from a server and clean up data."""
+    """Clean up ALL server data when bot is removed from a guild."""
     from datetime import datetime
     
-    logger.info(f"Removed from guild: {guild.name} (ID: {guild.id})")
+    logger.info(f"🚪 Removed from guild: {guild.name} (ID: {guild.id})")
     
     try:
         guild_id = str(guild.id)
+        removed_counts = {
+            'channels': 0,
+            'roles': 0,
+            'role_languages': 0,
+            'role_permissions': 0
+        }
         
         # Mark server as inactive
         if guild_id in servers_data:
             servers_data[guild_id]['active'] = False
             servers_data[guild_id]['left_at'] = datetime.utcnow().isoformat()
         else:
-            # If not tracked before, add it as left
             servers_data[guild_id] = {
                 'name': guild.name,
                 'joined_at': 'Unknown',
@@ -1189,20 +1194,63 @@ async def on_guild_remove(guild: discord.Guild):
             }
         
         await save_servers(servers_data)
-        update_bot_stats()
         
-        channels_to_remove = []
-        
-        for ch_id in list(channel_langs.keys()):
-            if ch_id.startswith(guild_id):
-                channels_to_remove.append(ch_id)
-        
+        # 1. Clean up channel language settings
+        channels_to_remove = [ch_id for ch_id in list(channel_langs.keys()) 
+                             if ch_id.startswith(guild_id)]
         for ch_id in channels_to_remove:
             del channel_langs[ch_id]
+            removed_counts['channels'] += 1
         
         if channels_to_remove:
             await save_channels(channel_langs)
-            logger.info(f"Cleaned up {len(channels_to_remove)} channel settings from {guild.name}")
+        
+        # 2. Clean up allowed roles
+        roles_to_remove = [role_id for role_id in list(allowed_roles.keys()) 
+                          if role_id.startswith(guild_id)]
+        for role_id in roles_to_remove:
+            del allowed_roles[role_id]
+            removed_counts['roles'] += 1
+        
+        if roles_to_remove:
+            await save_allowed_roles(allowed_roles)
+        
+        # 3. Clean up role languages
+        role_langs_to_remove = [role_id for role_id in list(role_languages.keys()) 
+                               if role_id.startswith(guild_id)]
+        for role_id in role_langs_to_remove:
+            del role_languages[role_id]
+            removed_counts['role_languages'] += 1
+        
+        if role_langs_to_remove:
+            await save_role_languages(role_languages)
+        
+        # 4. Clean up role permissions
+        role_perms_to_remove = [role_id for role_id in list(role_permissions.keys()) 
+                               if role_id.startswith(guild_id)]
+        for role_id in role_perms_to_remove:
+            del role_permissions[role_id]
+            removed_counts['role_permissions'] += 1
+        
+        if role_perms_to_remove:
+            await save_role_permissions(role_permissions)
+        
+        # Log cleanup summary
+        total_removed = sum(removed_counts.values())
+        if total_removed > 0:
+            logger.info(f"🧹 Cleaned up {guild.name} data:")
+            logger.info(f"   • {removed_counts['channels']} channel settings")
+            logger.info(f"   • {removed_counts['roles']} allowed roles")
+            logger.info(f"   • {removed_counts['role_languages']} role languages")
+            logger.info(f"   • {removed_counts['role_permissions']} role permissions")
+            logger.info(f"   ✅ Total: {total_removed} entries removed")
+        else:
+            logger.info(f"✅ No data to clean up for {guild.name}")
+        
+        update_bot_stats()
+        
+    except Exception as e:
+        logger.error(f"❌ Error cleaning up guild data for {guild.name}: {e}")
     except Exception as e:
         logger.error(f"Error cleaning up guild data for {guild.name}: {e}")
 
