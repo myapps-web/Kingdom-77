@@ -38,6 +38,14 @@ load_dotenv()
 
 TOKEN = os.getenv("TOKEN")
 GUILD_ID = os.getenv("GUILD_ID")
+BOT_OWNER_ID = 1234567890  # ⚠️ REPLACE WITH YOUR DISCORD USER ID
+
+# Bot control state
+bot_disabled = False  # When True, all commands except /control are disabled
+
+def check_bot_enabled():
+    """Check if bot is enabled. Returns True if enabled or user is owner."""
+    return not bot_disabled
 
 # File paths for data persistence
 if os.path.dirname(__file__):
@@ -1038,6 +1046,26 @@ async def on_ready():
         logger.debug(f"Could not list loaded cogs: {e}")
 
 
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    """Global error handler for application commands."""
+    # Check if bot is disabled (allow owner to bypass)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        # Command executed while bot is disabled - silently ignore
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Bot is currently disabled.", ephemeral=True, delete_after=3)
+            except:
+                pass
+        return
+    
+    # Handle other errors
+    if isinstance(error, app_commands.CommandNotFound):
+        return  # Ignore command not found errors
+    
+    logger.error(f"Command error: {error}")
+
+
 @bot.event
 async def on_guild_join(guild: discord.Guild):
     """Log when the bot joins a new server and track it."""
@@ -1105,6 +1133,10 @@ async def on_guild_remove(guild: discord.Guild):
 @bot.event
 async def on_message(message: discord.Message):
     """Handle message translation based on channel language settings with dual language support."""
+    # Check if bot is disabled
+    if bot_disabled:
+        return
+    
     # Ignore bots and webhooks
     if message.author.bot or message.webhook_id:
         return
@@ -2678,12 +2710,218 @@ async def translate_message_context(interaction: discord.Interaction, message: d
 
 
 # ============================================================================
+# BOT CONTROL PANEL (OWNER ONLY)
+# ============================================================================
+
+class BotControlView(discord.ui.View):
+    """Advanced control panel for bot owner only."""
+    
+    def __init__(self):
+        super().__init__(timeout=None)  # Persistent view
+        self.update_buttons()
+    
+    def update_buttons(self):
+        """Update button states based on bot status."""
+        global bot_disabled
+        # Clear and rebuild buttons
+        self.clear_items()
+        
+        # Status button (non-functional, just shows status)
+        status_btn = discord.ui.Button(
+            label=f"Status: {'🔴 DISABLED' if bot_disabled else '🟢 ACTIVE'}",
+            style=discord.ButtonStyle.secondary,
+            disabled=True,
+            row=0
+        )
+        self.add_item(status_btn)
+        
+        # Toggle button
+        if bot_disabled:
+            toggle_btn = discord.ui.Button(
+                label="🟢 Enable Bot",
+                style=discord.ButtonStyle.success,
+                custom_id="enable_bot",
+                row=1
+            )
+            toggle_btn.callback = self.enable_bot
+        else:
+            toggle_btn = discord.ui.Button(
+                label="🔴 Disable Bot",
+                style=discord.ButtonStyle.danger,
+                custom_id="disable_bot",
+                row=1
+            )
+            toggle_btn.callback = self.disable_bot
+        self.add_item(toggle_btn)
+        
+        # Sync commands button
+        sync_btn = discord.ui.Button(
+            label="🔄 Sync Commands",
+            style=discord.ButtonStyle.primary,
+            custom_id="sync_commands",
+            row=1
+        )
+        sync_btn.callback = self.sync_commands
+        self.add_item(sync_btn)
+        
+        # Refresh button
+        refresh_btn = discord.ui.Button(
+            label="♻️ Refresh Panel",
+            style=discord.ButtonStyle.secondary,
+            custom_id="refresh_panel",
+            row=2
+        )
+        refresh_btn.callback = self.refresh_panel
+        self.add_item(refresh_btn)
+    
+    async def disable_bot(self, interaction: discord.Interaction):
+        """Disable all bot commands except /control."""
+        global bot_disabled
+        bot_disabled = True
+        self.update_buttons()
+        
+        emb = make_embed(
+            title='🔴 Bot Disabled',
+            description='**All commands have been disabled!**\n\n'
+                       '✅ Only `/control` command remains active\n'
+                       '❌ All other commands are now hidden and disabled\n'
+                       '⚠️ Translation system is also stopped\n\n'
+                       'Use the "Enable Bot" button to restore functionality.',
+            color=discord.Color.red()
+        )
+        await interaction.response.edit_message(embed=await self.get_control_embed(), view=self)
+        logger.warning(f"Bot disabled by owner {interaction.user}")
+    
+    async def enable_bot(self, interaction: discord.Interaction):
+        """Enable all bot commands."""
+        global bot_disabled
+        bot_disabled = False
+        self.update_buttons()
+        
+        emb = make_embed(
+            title='🟢 Bot Enabled',
+            description='**All commands have been restored!**\n\n'
+                       '✅ All commands are now active\n'
+                       '✅ Translation system is running\n'
+                       '✅ Bot is fully operational\n\n'
+                       'Everything is back to normal.',
+            color=discord.Color.green()
+        )
+        await interaction.response.edit_message(embed=await self.get_control_embed(), view=self)
+        logger.info(f"Bot enabled by owner {interaction.user}")
+    
+    async def sync_commands(self, interaction: discord.Interaction):
+        """Sync bot commands with Discord."""
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            synced = await bot.tree.sync()
+            emb = make_embed(
+                title='Commands Synced ✅',
+                description=f'Successfully synced **{len(synced)}** commands.\n\n'
+                           f'Commands may take a few minutes to update.',
+                color=discord.Color.green()
+            )
+            await interaction.followup.send(embed=emb, ephemeral=True)
+            logger.info(f"Commands synced by owner {interaction.user}: {len(synced)} commands")
+        except Exception as e:
+            emb = make_embed(
+                title='Sync Failed ❌',
+                description=f'Failed to sync commands:\n```{str(e)}```',
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=emb, ephemeral=True)
+            logger.error(f"Command sync failed: {e}")
+    
+    async def refresh_panel(self, interaction: discord.Interaction):
+        """Refresh the control panel."""
+        self.update_buttons()
+        await interaction.response.edit_message(embed=await self.get_control_embed(), view=self)
+    
+    async def get_control_embed(self):
+        """Generate the control panel embed."""
+        global bot_disabled
+        
+        status_emoji = "🔴" if bot_disabled else "🟢"
+        status_text = "DISABLED" if bot_disabled else "ACTIVE"
+        status_color = discord.Color.red() if bot_disabled else discord.Color.green()
+        
+        emb = make_embed(
+            title='🎛️ Bot Control Panel',
+            description=f'**Current Status:** {status_emoji} **{status_text}**\n\n'
+                       f'Use the buttons below to control the bot.',
+            color=status_color
+        )
+        
+        # Bot info
+        emb.add_field(
+            name='📊 Bot Information',
+            value=f'**Servers:** {len(bot.guilds)}\n'
+                  f'**Users:** {sum(g.member_count for g in bot.guilds):,}\n'
+                  f'**Latency:** {round(bot.latency * 1000)}ms\n'
+                  f'**Version:** Kingdom-77 v2.6',
+            inline=True
+        )
+        
+        # Status info
+        if bot_disabled:
+            emb.add_field(
+                name='⚠️ Disabled Mode',
+                value='• All commands hidden\n'
+                      '• Translation stopped\n'
+                      '• Only /control works',
+                inline=True
+            )
+        else:
+            emb.add_field(
+                name='✅ Active Mode',
+                value='• All commands visible\n'
+                      '• Translation active\n'
+                      '• Fully operational',
+                inline=True
+            )
+        
+        emb.set_footer(text=f"Owner Control Panel • ID: {BOT_OWNER_ID}")
+        
+        return emb
+
+
+# ============================================================================
+# SLASH COMMANDS - BOT OWNER ONLY
+# ============================================================================
+
+@bot.tree.command(name='control', description='🎛️ Bot control panel (Owner only)')
+async def control_panel(interaction: discord.Interaction):
+    """Display bot control panel - accessible only by bot owner."""
+    # Check if user is the bot owner
+    if interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Access Denied',
+            description='⛔ This command is restricted to the bot owner only.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    # Create control panel
+    view = BotControlView()
+    embed = await view.get_control_embed()
+    
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    logger.info(f"Control panel accessed by owner {interaction.user}")
+
+
+# ============================================================================
 # SLASH COMMANDS - GENERAL
 # ============================================================================
 
 @bot.tree.command(name='ping', description='Check if the bot is responsive')
 async def ping(interaction: discord.Interaction):
     """Check bot responsiveness and latency with visual indicators."""
+    # Check if bot is disabled
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        return
+    
     ws_ms = round(bot.latency * 1000)
     
     # Determine emoji and status based on latency ranges
@@ -2730,6 +2968,10 @@ async def ping(interaction: discord.Interaction):
 @bot.tree.command(name='botstats', description='Display bot statistics and information')
 async def botstats(interaction: discord.Interaction):
     """Show comprehensive bot statistics including servers and ratings."""
+    # Check if bot is disabled
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        return
+    
     try:
         # Calculate statistics
         total_servers = len(servers_data)
@@ -2796,7 +3038,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.5"
+        bot_info += f"**Version:** Kingdom-77 v2.6"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
