@@ -1025,6 +1025,7 @@ async def on_ready():
     
     logger.info(f"Logged in as {bot.user}")
     logger.info(f"Bot is in {len(bot.guilds)} server(s)")
+    logger.info(f"🔑 BOT_OWNER_ID configured as: {BOT_OWNER_ID}")
     
     # Load data from files
     global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
@@ -3292,8 +3293,12 @@ class BotControlView(discord.ui.View):
 @bot.tree.command(name='dashboard', description='🎛️ لوحة تحكم البوت (المالك فقط)')
 async def dashboard_panel(interaction: discord.Interaction):
     """Display bot dashboard - accessible only by bot owner."""
+    logger.info(f"🔍 Dashboard access attempt by {interaction.user} (ID: {interaction.user.id})")
+    logger.info(f"🔑 Comparing with BOT_OWNER_ID: {BOT_OWNER_ID}")
+    
     # Check if user is the bot owner
     if interaction.user.id != BOT_OWNER_ID:
+        logger.warning(f"⛔ Dashboard access denied for {interaction.user} (ID: {interaction.user.id})")
         emb = make_embed(
             title='Access Denied',
             description='⛔ هذا الأمر مخصص لمالك البوت فقط.',
@@ -3303,6 +3308,7 @@ async def dashboard_panel(interaction: discord.Interaction):
         return
     
     # Create control panel
+    logger.info(f"✅ Dashboard access granted for owner {interaction.user}")
     view = BotControlView()
     embed = await view.get_control_embed()
     
