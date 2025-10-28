@@ -1344,91 +1344,91 @@ async def on_message(message: discord.Message):
         if secondary_lang:
             # Dual language mode: bidirectional translation between primary and secondary
             if detected == primary_lang:
-            # Message is in primary → translate to secondary
-            target = secondary_lang
-            logger.debug(f"Detected primary language ({primary_lang}), translating to secondary ({secondary_lang})")
-        elif detected == secondary_lang:
-            # Message is in secondary → translate to primary
-            target = primary_lang
-            logger.debug(f"Detected secondary language ({secondary_lang}), translating to primary ({primary_lang})")
+                # Message is in primary → translate to secondary
+                target = secondary_lang
+                logger.debug(f"Detected primary language ({primary_lang}), translating to secondary ({secondary_lang})")
+            elif detected == secondary_lang:
+                # Message is in secondary → translate to primary
+                target = primary_lang
+                logger.debug(f"Detected secondary language ({secondary_lang}), translating to primary ({primary_lang})")
+            else:
+                # Message is in another language (not primary or secondary) → translate to primary (default)
+                target = primary_lang
+                logger.debug(f"Detected other language ({detected}), translating to primary ({primary_lang})")
         else:
-            # Message is in another language (not primary or secondary) → translate to primary (default)
+            # Single language mode: translate all messages to primary language
+            # This allows non-primary language messages to be translated
             target = primary_lang
-            logger.debug(f"Detected other language ({detected}), translating to primary ({primary_lang})")
-    else:
-        # Single language mode: translate all messages to primary language
-        # This allows non-primary language messages to be translated
-        target = primary_lang
-        logger.debug(f"Single language mode: translating {detected} to primary ({primary_lang})")
-        
-        # Skip translation only if message is already in primary AND same as result would be
-        # We still process it to allow translation to happen
-
-    # Create cache key (using hash to handle long messages)
-    cache_key = (hash(content), detected, target)
-    
-    # Check cache first for faster response
-    if cache_key in translation_cache:
-        translated = translation_cache[cache_key]
-        translation_mode_used = 'cached'
-        logger.debug(f"Using cached translation for '{content[:30]}...'")
-    else:
-        # Get quality mode from channel config (only if dict, otherwise default to 'fast')
-        if isinstance(channel_config, dict):
-            quality_mode = channel_config.get('translation_quality', 'fast')
-        else:
-            quality_mode = 'fast'  # Legacy format (string) doesn't have quality setting
-        
-        # Translate using smart quality selection
-        try:
-            translated, translation_mode_used = await smart_translate(
-                text=content,
-                source_lang=detected,
-                target_lang=target,
-                quality_mode=quality_mode
-            )
+            logger.debug(f"Single language mode: translating {detected} to primary ({primary_lang})")
             
-            # Store in cache
-            if translated:
-                translation_cache[cache_key] = translated
+            # Skip translation only if message is already in primary AND same as result would be
+            # We still process it to allow translation to happen
+
+        # Create cache key (using hash to handle long messages)
+        cache_key = (hash(content), detected, target)
+        
+        # Check cache first for faster response
+        if cache_key in translation_cache:
+            translated = translation_cache[cache_key]
+            translation_mode_used = 'cached'
+            logger.debug(f"Using cached translation for '{content[:30]}...'")
+        else:
+            # Get quality mode from channel config (only if dict, otherwise default to 'fast')
+            if isinstance(channel_config, dict):
+                quality_mode = channel_config.get('translation_quality', 'fast')
+            else:
+                quality_mode = 'fast'  # Legacy format (string) doesn't have quality setting
+            
+            # Translate using smart quality selection
+            try:
+                translated, translation_mode_used = await smart_translate(
+                    text=content,
+                    source_lang=detected,
+                    target_lang=target,
+                    quality_mode=quality_mode
+                )
                 
-                # Smart cache cleaning: remove same amount of oldest unused entries as new ones added
-                if len(translation_cache) > CACHE_MAX_SIZE:
-                    # Calculate how many entries to remove (entries added beyond limit)
-                    excess_count = len(translation_cache) - CACHE_MAX_SIZE
-                    # Remove oldest entries (FIFO - First In First Out)
-                    for _ in range(excess_count):
-                        if translation_cache:  # Check if not empty
-                            translation_cache.pop(next(iter(translation_cache)))
-                    logger.debug(f"Cache cleaned: removed {excess_count} oldest entries")
+                # Store in cache
+                if translated:
+                    translation_cache[cache_key] = translated
                     
-        except Exception as e:
-            logger.error(f"Translation API error: {e}")
+                    # Smart cache cleaning: remove same amount of oldest unused entries as new ones added
+                    if len(translation_cache) > CACHE_MAX_SIZE:
+                        # Calculate how many entries to remove (entries added beyond limit)
+                        excess_count = len(translation_cache) - CACHE_MAX_SIZE
+                        # Remove oldest entries (FIFO - First In First Out)
+                        for _ in range(excess_count):
+                            if translation_cache:  # Check if not empty
+                                translation_cache.pop(next(iter(translation_cache)))
+                        logger.debug(f"Cache cleaned: removed {excess_count} oldest entries")
+                        
+            except Exception as e:
+                logger.error(f"Translation API error: {e}")
+                return
+
+        if not translated:
+            logger.debug("Translation returned empty")
             return
 
-    if not translated:
-        logger.debug("Translation returned empty")
-        return
-
-    # Only send translation if it's different from original
-    if translated and translated.strip() != content.strip():
-        emb = make_embed(title='Translation', description=translated, color=discord.Color.blue())
+        # Only send translation if it's different from original
+        if translated and translated.strip() != content.strip():
+            emb = make_embed(title='Translation', description=translated, color=discord.Color.blue())
+            try:
+                detected_name = SUPPORTED.get(detected, detected)
+                target_name = SUPPORTED.get(target, target)
+                emb.set_footer(text=f"{detected_name} → {target_name}")
+            except Exception:
+                pass
+            await message.reply(embed=emb, mention_author=False)
+            logger.info(f"Detected '{detected}' message in channel with primary='{primary_lang}' secondary='{secondary_lang}' → Translated to {SUPPORTED.get(target, target)}")
+        else:
+            logger.debug(f"Translation result is same as original, skipping")
+            
+        # Allow other commands to be processed
         try:
-            detected_name = SUPPORTED.get(detected, detected)
-            target_name = SUPPORTED.get(target, target)
-            emb.set_footer(text=f"{detected_name} → {target_name}")
+            await bot.process_commands(message)
         except Exception:
             pass
-        await message.reply(embed=emb, mention_author=False)
-        logger.info(f"Detected '{detected}' message in channel with primary='{primary_lang}' secondary='{secondary_lang}' → Translated to {SUPPORTED.get(target, target)}")
-    else:
-        logger.debug(f"Translation result is same as original, skipping")
-        
-    # Allow other commands to be processed
-    try:
-        await bot.process_commands(message)
-    except Exception:
-        pass
     
     except Exception as e:
         logger.error(f"❌ Error in on_message handler: {e}", exc_info=True)
