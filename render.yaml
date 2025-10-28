@@ -1,0 +1,15 @@
+﻿services:
+  - type: web
+    name: kingdom-77-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: BOT_OWNER_ID
+        sync: false
+      - key: GUILD_ID
+        sync: false
+    autoDeploy: true

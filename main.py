@@ -4275,13 +4275,13 @@ if __name__ == '__main__':
         logger.error('TOKEN is not set. Put it in Replit Secrets as TOKEN or .env locally.')
         exit(1)
     
-    # Start keep-alive server for Replit (optional - not needed for Render)
+    # Start keep-alive server for Render Web Service (required for free plan)
     try:
         from keep_alive import keep_alive
         keep_alive()
-        logger.info("✅ Keep-alive server enabled for 24/7 uptime (Replit)")
+        logger.info("✅ Keep-alive server started on port 8080")
     except ImportError:
-        logger.info("ℹ️ Keep-alive not enabled (not needed for Render/production)")
+        logger.warning("⚠️ Keep-alive not enabled - Install flask: pip install flask")
     except Exception as e:
         logger.debug(f"Keep-alive error: {e}")
     
