@@ -30,6 +30,15 @@ from discord.ext import commands, tasks
 
 
 # ============================================================================
+# LOGGING SETUP
+# ============================================================================
+
+# Initialize logging early to avoid NameError
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
 # CONFIGURATION
 # ============================================================================
 
@@ -306,10 +315,6 @@ def get_translation_message(lang_code: str, key: str) -> str:
     
     # Final fallback to English
     return TRANSLATION_MESSAGES['en'].get(key, '')
-
-# Logging configuration
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
-logger = logging.getLogger(__name__)
 
 
 # ============================================================================
