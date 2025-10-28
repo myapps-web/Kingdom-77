@@ -12,4 +12,10 @@
         sync: false
       - key: GUILD_ID
         sync: false
+      - key: DATA_DIR
+        value: /data
+    disk:
+      name: kingdom-77-data
+      mountPath: /data
+      sizeGB: 1
     autoDeploy: true

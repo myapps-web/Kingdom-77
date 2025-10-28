@@ -98,30 +98,34 @@ def save_priority_guilds():
         return False
 
 # File paths for data persistence
-if os.path.dirname(__file__):
+# Use /data for Render persistent disk, fallback to local data/
+if os.getenv("DATA_DIR"):
+    # Render with persistent disk
+    DATA_DIR = os.getenv("DATA_DIR")
+elif os.path.dirname(__file__):
     BASE_DIR = os.path.dirname(__file__)
     DATA_DIR = os.path.join(BASE_DIR, 'data')
-    CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
-    RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
-    ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
-    ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
-    ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
-    SERVERS_FILE = os.path.join(DATA_DIR, 'servers.json')
-    TRANSLATION_STATS_FILE = os.path.join(DATA_DIR, 'translation_stats.json')
-    BOT_STATS_FILE = os.path.join(BASE_DIR, 'bot_stats.txt')
 else:
     DATA_DIR = 'data'
-    CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
-    RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
-    ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
-    ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
-    ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
-    SERVERS_FILE = os.path.join(DATA_DIR, 'servers.json')
-    TRANSLATION_STATS_FILE = os.path.join(DATA_DIR, 'translation_stats.json')
+
+CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
+RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
+ROLES_FILE = os.path.join(DATA_DIR, 'allowed_roles.json')
+ROLE_LANGUAGES_FILE = os.path.join(DATA_DIR, 'role_languages.json')
+ROLE_PERMISSIONS_FILE = os.path.join(DATA_DIR, 'role_permissions.json')
+SERVERS_FILE = os.path.join(DATA_DIR, 'servers.json')
+TRANSLATION_STATS_FILE = os.path.join(DATA_DIR, 'translation_stats.json')
+
+# Bot stats file (local only)
+if os.path.dirname(__file__):
+    BASE_DIR = os.path.dirname(__file__)
+    BOT_STATS_FILE = os.path.join(BASE_DIR, 'bot_stats.txt')
+else:
     BOT_STATS_FILE = 'bot_stats.txt'
 
 # Create data directory if it doesn't exist
 os.makedirs(DATA_DIR, exist_ok=True)
+logger.info(f"📁 Data directory: {DATA_DIR}")
 
 # Supported languages for translation
 SUPPORTED = {
