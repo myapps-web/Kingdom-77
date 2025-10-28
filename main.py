@@ -114,13 +114,6 @@ BOT_PERMISSIONS = {
         'command': '/channel quality',
         'category': 'Channel Management'
     },
-    'listchannels': {
-        'name': 'View Channel Languages',
-        'description': 'Can view all channel language settings',
-        'emoji': '📋',
-        'command': '/view channels',
-        'category': 'Information'
-    },
     'setrolelang': {
         'name': 'Set Role Language',
         'description': 'Can assign default languages to roles',
@@ -135,47 +128,12 @@ BOT_PERMISSIONS = {
         'command': '/role removelang',
         'category': 'Role Management'
     },
-    'listrolelanguages': {
-        'name': 'View Role Languages',
-        'description': 'Can view all role language assignments',
-        'emoji': '📜',
-        'command': '/view rolelanguages',
-        'category': 'Information'
-    },
     'manage_roles': {
         'name': 'Manage Bot Roles',
         'description': 'Can add/remove allowed roles and set permissions',
         'emoji': '👥',
         'command': '/role add, /role remove',
         'category': 'Role Management'
-    },
-    'view_stats': {
-        'name': 'View Statistics',
-        'description': 'Can view detailed bot statistics and analytics',
-        'emoji': '📊',
-        'command': '/botstats',
-        'category': 'Information'
-    },
-    'view_all_lists': {
-        'name': 'View All Lists',
-        'description': 'Can view all server lists and configurations',
-        'emoji': '📝',
-        'command': '/view lists',
-        'category': 'Information'
-    },
-    'rate_bot': {
-        'name': 'Rate Bot',
-        'description': 'Can rate and provide feedback for the bot',
-        'emoji': '⭐',
-        'command': '/rate',
-        'category': 'General'
-    },
-    'use_translate': {
-        'name': 'Use Translation',
-        'description': 'Can use right-click translation feature',
-        'emoji': '🌐',
-        'command': 'Right-click → Translate Message',
-        'category': 'General'
     }
 }
 
@@ -2811,16 +2769,11 @@ async def botstats(interaction: discord.Interaction):
         server_stats += f"└─ Left Servers: {left_servers} ❌"
         emb.add_field(name='🌐 Server Statistics', value=server_stats, inline=False)
         
-        # Rating Statistics
+        # Rating Statistics - Simplified (General Rating Only)
         rating_stats = f"**Average Rating:** {average_rating:.2f} / 5.00\n"
         rating_stats += f"{stars_display}\n"
-        rating_stats += f"**Total Raters:** {total_raters} users\n\n"
-        rating_stats += f"⭐⭐⭐⭐⭐ {rating_counts[5]} • "
-        rating_stats += f"⭐⭐⭐⭐ {rating_counts[4]}\n"
-        rating_stats += f"⭐⭐⭐ {rating_counts[3]} • "
-        rating_stats += f"⭐⭐ {rating_counts[2]} • "
-        rating_stats += f"⭐ {rating_counts[1]}"
-        emb.add_field(name='⭐ Ratings', value=rating_stats, inline=False)
+        rating_stats += f"**Total Raters:** {total_raters} users"
+        emb.add_field(name='⭐ Bot Rating', value=rating_stats, inline=False)
         
         # Channel Configuration
         channel_stats = f"**Configured Channels:** {configured_channels}\n"
@@ -2832,7 +2785,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.2"
+        bot_info += f"**Version:** Kingdom-77 v2.3"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
