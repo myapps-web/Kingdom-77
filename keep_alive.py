@@ -72,7 +72,7 @@ def home():
             <div class="container">
                 <h1>🤖 Kingdom-77 Bot</h1>
                 <p><span class="status"></span> Bot is Running!</p>
-                <p class="footer">Translation Bot • 24/7 Uptime • v2.6</p>
+                <p class="footer">Translation Bot • 24/7 Uptime • v2.8</p>
             </div>
         </body>
     </html>
@@ -81,7 +81,7 @@ def home():
 @app.route('/health')
 def health():
     """Simple health check for monitoring services"""
-    return {"status": "ok", "bot": "Kingdom-77", "version": "2.6", "running": True}, 200
+    return {"status": "ok", "bot": "Kingdom-77", "version": "2.8", "running": True}, 200
 
 @app.route('/ping')
 def ping():
