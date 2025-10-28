@@ -3397,14 +3397,6 @@ async def help(interaction: discord.Interaction):
         ]
         commands_list.extend(admin_commands)
     
-    if is_owner:
-        owner_commands = [
-            '',
-            '**🎛️ Owner Commands** *Owner Only*',
-            '`/dashboard` - Bot control panel'
-        ]
-        commands_list.extend(owner_commands)
-    
     desc = '\n'.join(commands_list)
     
     if is_admin:
