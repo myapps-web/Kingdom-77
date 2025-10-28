@@ -1,0 +1,6 @@
+# Priority Guilds for Fast Command Sync
+# Add one guild ID per line
+# Example:
+# 1234567890123456
+# 9876543210987654
+

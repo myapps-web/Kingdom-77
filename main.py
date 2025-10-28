@@ -42,10 +42,60 @@ BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "1234567890"))  # Will use env var 
 
 # Bot control state
 bot_disabled = False  # When True, all commands except /control are disabled
+priority_guilds = []  # List of guild IDs for fast command sync
 
 def check_bot_enabled():
     """Check if bot is enabled. Returns True if enabled or user is owner."""
     return not bot_disabled
+
+def load_priority_guilds():
+    """Load priority guilds from secret file or local file."""
+    global priority_guilds
+    priority_guilds = []
+    
+    # Try to load from Render secret file first
+    secret_file = '/etc/secrets/priority_guilds.txt'
+    if os.path.exists(secret_file):
+        try:
+            with open(secret_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and line.isdigit():
+                        priority_guilds.append(int(line))
+            logger.info(f"✅ Loaded {len(priority_guilds)} priority guilds from secret file")
+            return priority_guilds
+        except Exception as e:
+            logger.error(f"❌ Error loading secret file: {e}")
+    
+    # Fallback to local file
+    local_file = os.path.join(os.path.dirname(__file__), 'priority_guilds.txt')
+    if os.path.exists(local_file):
+        try:
+            with open(local_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and line.isdigit():
+                        priority_guilds.append(int(line))
+            logger.info(f"✅ Loaded {len(priority_guilds)} priority guilds from local file")
+        except Exception as e:
+            logger.error(f"❌ Error loading local file: {e}")
+    
+    return priority_guilds
+
+def save_priority_guilds():
+    """Save priority guilds to local file."""
+    local_file = os.path.join(os.path.dirname(__file__), 'priority_guilds.txt')
+    try:
+        with open(local_file, 'w', encoding='utf-8') as f:
+            f.write("# Priority Guilds for Fast Command Sync\n")
+            f.write("# Add one guild ID per line\n\n")
+            for guild_id in priority_guilds:
+                f.write(f"{guild_id}\n")
+        logger.info(f"✅ Saved {len(priority_guilds)} priority guilds to local file")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Error saving priority guilds: {e}")
+        return False
 
 # File paths for data persistence
 if os.path.dirname(__file__):
@@ -1012,6 +1062,14 @@ async def on_ready():
         daily_cleanup_task.start()
         logger.info("✅ Daily cleanup task started")
     
+    # Load priority guilds
+    try:
+        load_priority_guilds()
+        if priority_guilds:
+            logger.info(f"✅ Loaded {len(priority_guilds)} priority guilds")
+    except Exception as e:
+        logger.error(f"Error loading priority guilds: {e}")
+    
     # Log application commands
     try:
         cmds = [c.name for c in bot.tree.walk_commands()]
@@ -1022,9 +1080,24 @@ async def on_ready():
     except Exception as e:
         logger.debug(f"Could not list app commands: {e}")
     
+    # Sync slash commands to priority guilds first (fast sync)
+    if priority_guilds:
+        try:
+            logger.info(f"Starting fast sync for {len(priority_guilds)} priority guilds...")
+            for guild_id in priority_guilds:
+                try:
+                    synced = await bot.tree.sync(guild=discord.Object(id=guild_id))
+                    guild = bot.get_guild(guild_id)
+                    guild_name = guild.name if guild else f"ID:{guild_id}"
+                    logger.info(f"✅ Fast synced {len(synced)} commands to {guild_name}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to sync guild {guild_id}: {e}")
+        except Exception as e:
+            logger.error(f"Error during priority guild sync: {e}")
+    
     # Sync slash commands globally
     try:
-        logger.info("Starting command sync...")
+        logger.info("Starting global command sync...")
         synced = await bot.tree.sync()
         logger.info(f"✅ Successfully synced {len(synced)} global commands")
         logger.info(f"Commands synced: {[cmd.name for cmd in synced]}")
@@ -2713,6 +2786,217 @@ async def translate_message_context(interaction: discord.Interaction, message: d
 # BOT CONTROL PANEL (OWNER ONLY)
 # ============================================================================
 
+class PriorityGuildsModal(discord.ui.Modal, title="إضافة سيرفر مهم"):
+    """Modal to add a priority guild."""
+    
+    guild_id = discord.ui.TextInput(
+        label="ID السيرفر",
+        placeholder="1234567890123456",
+        required=True,
+        min_length=17,
+        max_length=20
+    )
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        global priority_guilds
+        try:
+            gid = int(self.guild_id.value)
+            
+            if gid in priority_guilds:
+                await interaction.response.send_message(
+                    "⚠️ هذا السيرفر موجود مسبقاً في القائمة!",
+                    ephemeral=True
+                )
+                return
+            
+            # Check if bot is in this guild
+            guild = bot.get_guild(gid)
+            if not guild:
+                await interaction.response.send_message(
+                    "⚠️ البوت ليس موجوداً في هذا السيرفر!",
+                    ephemeral=True
+                )
+                return
+            
+            priority_guilds.append(gid)
+            save_priority_guilds()
+            
+            # Sync commands to this guild immediately
+            await bot.tree.sync(guild=discord.Object(id=gid))
+            
+            await interaction.response.send_message(
+                f"✅ تمت إضافة السيرفر **{guild.name}** وتم مزامنة الأوامر فوراً!",
+                ephemeral=True
+            )
+            
+        except ValueError:
+            await interaction.response.send_message(
+                "❌ يجب إدخال رقم صحيح لـ ID السيرفر!",
+                ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(
+                f"❌ حدث خطأ: {str(e)}",
+                ephemeral=True
+            )
+
+
+class PriorityGuildsView(discord.ui.View):
+    """View for managing priority guilds."""
+    
+    def __init__(self, parent_view=None):
+        super().__init__(timeout=180)
+        self.parent_view = parent_view
+    
+    def get_embed(self):
+        """Generate embed showing priority guilds."""
+        global priority_guilds
+        
+        embed = discord.Embed(
+            title="⚡ السيرفرات ذات الأولوية",
+            description="السيرفرات في هذه القائمة تحصل على تحديث فوري للأوامر",
+            color=discord.Color.gold()
+        )
+        
+        if priority_guilds:
+            guilds_text = ""
+            for idx, gid in enumerate(priority_guilds, 1):
+                guild = bot.get_guild(gid)
+                if guild:
+                    guilds_text += f"{idx}. **{guild.name}** ({guild.member_count} عضو)\n"
+                else:
+                    guilds_text += f"{idx}. سيرفر غير معروف (ID: {gid})\n"
+            
+            embed.add_field(
+                name=f"📋 السيرفرات المسجلة ({len(priority_guilds)})",
+                value=guilds_text,
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="📋 السيرفرات المسجلة",
+                value="*لا توجد سيرفرات مسجلة حالياً*",
+                inline=False
+            )
+        
+        embed.set_footer(text="ℹ️ يمكنك إضافة/حذف السيرفرات من الأزرار أدناه")
+        return embed
+    
+    @discord.ui.button(label="➕ إضافة سيرفر", style=discord.ButtonStyle.success, row=0)
+    async def add_guild(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Add a new priority guild."""
+        modal = PriorityGuildsModal()
+        await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="➖ حذف سيرفر", style=discord.ButtonStyle.danger, row=0)
+    async def remove_guild(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Remove a priority guild."""
+        global priority_guilds
+        
+        if not priority_guilds:
+            await interaction.response.send_message(
+                "⚠️ لا توجد سيرفرات لحذفها!",
+                ephemeral=True
+            )
+            return
+        
+        # Create select menu with guilds
+        options = []
+        for gid in priority_guilds[:25]:  # Discord limit
+            guild = bot.get_guild(gid)
+            if guild:
+                options.append(
+                    discord.SelectOption(
+                        label=guild.name[:100],
+                        description=f"ID: {gid}",
+                        value=str(gid)
+                    )
+                )
+            else:
+                options.append(
+                    discord.SelectOption(
+                        label=f"سيرفر غير معروف",
+                        description=f"ID: {gid}",
+                        value=str(gid)
+                    )
+                )
+        
+        class RemoveSelect(discord.ui.Select):
+            def __init__(self):
+                super().__init__(
+                    placeholder="اختر السيرفر المراد حذفه...",
+                    options=options,
+                    row=0
+                )
+            
+            async def callback(self, select_interaction: discord.Interaction):
+                global priority_guilds
+                gid = int(self.values[0])
+                guild = bot.get_guild(gid)
+                guild_name = guild.name if guild else f"ID: {gid}"
+                
+                priority_guilds.remove(gid)
+                save_priority_guilds()
+                
+                await select_interaction.response.send_message(
+                    f"✅ تم حذف السيرفر **{guild_name}** من القائمة!",
+                    ephemeral=True
+                )
+        
+        view = discord.ui.View(timeout=60)
+        view.add_item(RemoveSelect())
+        
+        await interaction.response.send_message(
+            "🗑️ اختر السيرفر المراد حذفه:",
+            view=view,
+            ephemeral=True
+        )
+    
+    @discord.ui.button(label="📋 عرض القائمة", style=discord.ButtonStyle.primary, row=1)
+    async def show_list(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Refresh the list display."""
+        embed = self.get_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="🔄 مزامنة الآن", style=discord.ButtonStyle.primary, row=1)
+    async def sync_now(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Sync commands to all priority guilds now."""
+        global priority_guilds
+        
+        if not priority_guilds:
+            await interaction.response.send_message(
+                "⚠️ لا توجد سيرفرات للمزامنة!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        success = 0
+        failed = 0
+        for gid in priority_guilds:
+            try:
+                await bot.tree.sync(guild=discord.Object(id=gid))
+                success += 1
+            except Exception as e:
+                logger.error(f"Failed to sync guild {gid}: {e}")
+                failed += 1
+        
+        await interaction.followup.send(
+            f"✅ تمت المزامنة: {success} نجح، {failed} فشل",
+            ephemeral=True
+        )
+    
+    @discord.ui.button(label="◀️ رجوع", style=discord.ButtonStyle.secondary, row=2)
+    async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Go back to main control panel."""
+        if self.parent_view:
+            embed = self.parent_view.get_control_embed()
+            await interaction.response.edit_message(embed=embed, view=self.parent_view)
+        else:
+            await interaction.response.edit_message(content="✅ تم الإغلاق", embed=None, view=None)
+
+
 class BotControlView(discord.ui.View):
     """Advanced control panel for bot owner only."""
     
@@ -2763,6 +3047,16 @@ class BotControlView(discord.ui.View):
         )
         sync_btn.callback = self.sync_commands
         self.add_item(sync_btn)
+        
+        # Priority guilds management button
+        priority_btn = discord.ui.Button(
+            label="⚡ إدارة السيرفرات",
+            style=discord.ButtonStyle.primary,
+            custom_id="priority_guilds",
+            row=2
+        )
+        priority_btn.callback = self.manage_priority_guilds
+        self.add_item(priority_btn)
         
         # Refresh button
         refresh_btn = discord.ui.Button(
@@ -2833,6 +3127,12 @@ class BotControlView(discord.ui.View):
             await interaction.followup.send(embed=emb, ephemeral=True)
             logger.error(f"Command sync failed: {e}")
     
+    async def manage_priority_guilds(self, interaction: discord.Interaction):
+        """Open priority guilds management panel."""
+        priority_view = PriorityGuildsView(parent_view=self)
+        embed = priority_view.get_embed()
+        await interaction.response.edit_message(embed=embed, view=priority_view)
+    
     async def refresh_panel(self, interaction: discord.Interaction):
         """Refresh the control panel."""
         self.update_buttons()
@@ -2859,7 +3159,7 @@ class BotControlView(discord.ui.View):
             value=f'**Servers:** {len(bot.guilds)}\n'
                   f'**Users:** {sum(g.member_count for g in bot.guilds):,}\n'
                   f'**Latency:** {round(bot.latency * 1000)}ms\n'
-                  f'**Version:** Kingdom-77 v2.6',
+                  f'**Version:** Kingdom-77 v2.7',
             inline=True
         )
         
@@ -2890,14 +3190,14 @@ class BotControlView(discord.ui.View):
 # SLASH COMMANDS - BOT OWNER ONLY
 # ============================================================================
 
-@bot.tree.command(name='control', description='🎛️ Bot control panel (Owner only)')
-async def control_panel(interaction: discord.Interaction):
-    """Display bot control panel - accessible only by bot owner."""
+@bot.tree.command(name='dashboard', description='🎛️ لوحة تحكم البوت (المالك فقط)')
+async def dashboard_panel(interaction: discord.Interaction):
+    """Display bot dashboard - accessible only by bot owner."""
     # Check if user is the bot owner
     if interaction.user.id != BOT_OWNER_ID:
         emb = make_embed(
             title='Access Denied',
-            description='⛔ This command is restricted to the bot owner only.',
+            description='⛔ هذا الأمر مخصص لمالك البوت فقط.',
             color=discord.Color.red()
         )
         await interaction.response.send_message(embed=emb, ephemeral=True)
@@ -2908,7 +3208,7 @@ async def control_panel(interaction: discord.Interaction):
     embed = await view.get_control_embed()
     
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    logger.info(f"Control panel accessed by owner {interaction.user}")
+    logger.info(f"Dashboard accessed by owner {interaction.user}")
 
 
 # ============================================================================
@@ -3038,7 +3338,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.6"
+        bot_info += f"**Version:** Kingdom-77 v2.7"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
