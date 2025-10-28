@@ -1079,6 +1079,21 @@ async def on_ready():
     except Exception as e:
         logger.error(f"Error loading priority guilds: {e}")
     
+    # 🎁 Check existing guilds for owner match and auto-add to priority
+    try:
+        auto_added_count = 0
+        for guild in bot.guilds:
+            if guild.owner_id == BOT_OWNER_ID and guild.id not in priority_guilds:
+                priority_guilds.append(guild.id)
+                auto_added_count += 1
+                logger.info(f"👑 Auto-added existing guild {guild.name} to priority guilds (owner match)")
+        
+        if auto_added_count > 0:
+            save_priority_guilds()
+            logger.info(f"✅ Auto-added {auto_added_count} existing guild(s) to priority list")
+    except Exception as e:
+        logger.error(f"Error checking existing guilds: {e}")
+    
     # Log application commands
     try:
         cmds = [c.name for c in bot.tree.walk_commands()]
