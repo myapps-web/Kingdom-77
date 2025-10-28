@@ -1156,7 +1156,7 @@ async def on_message(message: discord.Message):
     target = None
     
     if secondary_lang:
-        # Dual language mode: bidirectional translation
+        # Dual language mode: bidirectional translation between primary and secondary
         if detected == primary_lang:
             # Message is in primary → translate to secondary
             target = secondary_lang
@@ -1166,15 +1166,17 @@ async def on_message(message: discord.Message):
             target = primary_lang
             logger.debug(f"Detected secondary language ({secondary_lang}), translating to primary ({primary_lang})")
         else:
-            # Message is in another language → translate to primary (default)
+            # Message is in another language (not primary or secondary) → translate to primary (default)
             target = primary_lang
             logger.debug(f"Detected other language ({detected}), translating to primary ({primary_lang})")
     else:
-        # Single language mode: translate everything to primary
-        if detected == primary_lang:
-            logger.debug(f"Message already in target language ({primary_lang}), skipping")
-            return
+        # Single language mode: translate all messages to primary language
+        # This allows non-primary language messages to be translated
         target = primary_lang
+        logger.debug(f"Single language mode: translating {detected} to primary ({primary_lang})")
+        
+        # Skip translation only if message is already in primary AND same as result would be
+        # We still process it to allow translation to happen
 
     # Create cache key (using hash to handle long messages)
     cache_key = (hash(content), detected, target)
@@ -1185,8 +1187,11 @@ async def on_message(message: discord.Message):
         translation_mode_used = 'cached'
         logger.debug(f"Using cached translation for '{content[:30]}...'")
     else:
-        # Get quality mode from channel config
-        quality_mode = channel_config.get('translation_quality', 'fast')
+        # Get quality mode from channel config (only if dict, otherwise default to 'fast')
+        if isinstance(channel_config, dict):
+            quality_mode = channel_config.get('translation_quality', 'fast')
+        else:
+            quality_mode = 'fast'  # Legacy format (string) doesn't have quality setting
         
         # Translate using smart quality selection
         try:
@@ -2791,7 +2796,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.4"
+        bot_info += f"**Version:** Kingdom-77 v2.5"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
