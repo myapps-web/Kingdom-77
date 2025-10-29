@@ -593,6 +593,100 @@ async def save_servers(data: Dict[str, dict]):
     await loop.run_in_executor(None, _write, data)
 
 
+# ============================================================================
+# MONGODB HELPER FUNCTIONS (v3.0)
+# ============================================================================
+
+async def load_data_from_mongodb():
+    """Load all data from MongoDB into global variables."""
+    global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
+    
+    try:
+        import database.mongodb as mongodb_module
+        if not mongodb_module.db or not mongodb_module.db.client:
+            logger.warning("MongoDB not connected, using empty data")
+            channel_langs = {}
+            bot_ratings = {}
+            allowed_roles = {}
+            role_languages = {}
+            role_permissions = {}
+            servers_data = {}
+            return
+        
+        # Load channels from MongoDB
+        channels_from_db = await mongodb_module.db.db.channels.find().to_list(length=None)
+        channel_langs = {}
+        for ch in channels_from_db:
+            channel_id = ch.get('channel_id')
+            if channel_id:
+                channel_langs[channel_id] = {
+                    'primary': ch.get('primary'),
+                    'secondary': ch.get('secondary'),
+                    'blacklisted_languages': ch.get('blacklisted_languages', []),
+                    'translation_quality': ch.get('translation_quality', 'fast')
+                }
+        
+        logger.info(f"✅ Loaded {len(channel_langs)} channels from MongoDB")
+        
+        # Load ratings from MongoDB
+        ratings_from_db = await mongodb_module.db.db.ratings.find().to_list(length=None)
+        bot_ratings = {}
+        for rating in ratings_from_db:
+            user_id = rating.get('user_id')
+            if user_id:
+                bot_ratings[user_id] = {
+                    'rating': rating.get('rating'),
+                    'comment': rating.get('comment', ''),
+                    'timestamp': rating.get('timestamp')
+                }
+        
+        logger.info(f"✅ Loaded {len(bot_ratings)} ratings from MongoDB")
+        
+        # Load guilds (for roles and settings)
+        guilds_from_db = await mongodb_module.db.db.guilds.find().to_list(length=None)
+        allowed_roles = {}
+        role_languages = {}
+        role_permissions = {}
+        servers_data = {}
+        
+        for guild in guilds_from_db:
+            guild_id = guild.get('guild_id')
+            if not guild_id:
+                continue
+            
+            # Allowed roles
+            if 'roles' in guild and 'allowed_roles' in guild['roles']:
+                allowed_roles[guild_id] = guild['roles']['allowed_roles']
+            
+            # Role languages
+            if 'roles' in guild and 'role_languages' in guild['roles']:
+                role_languages[guild_id] = guild['roles']['role_languages']
+            
+            # Role permissions
+            if 'roles' in guild and 'role_permissions' in guild['roles']:
+                role_permissions[guild_id] = guild['roles']['role_permissions']
+            
+            # Server data
+            servers_data[guild_id] = {
+                'name': guild.get('name', ''),
+                'joined_at': guild.get('joined_at'),
+                'active': guild.get('active', True),
+                'left_at': guild.get('left_at')
+            }
+        
+        logger.info(f"✅ Loaded data for {len(guilds_from_db)} guilds from MongoDB")
+        
+    except Exception as e:
+        logger.error(f"❌ Error loading data from MongoDB: {e}")
+        # Fallback to empty data
+        channel_langs = {}
+        bot_ratings = {}
+        allowed_roles = {}
+        role_languages = {}
+        role_permissions = {}
+        servers_data = {}
+
+
 def update_bot_stats():
     """Update bot statistics text file with comprehensive information."""
     try:
@@ -1031,22 +1125,42 @@ async def on_ready():
     logger.info(f"🔑 BOT_OWNER_ID configured as: {BOT_OWNER_ID}")
     
     # Initialize MongoDB connection
+    mongodb_connected = False
     try:
         await init_database()
+        mongodb_connected = True
         logger.info("✅ MongoDB connection initialized successfully")
     except Exception as e:
         logger.error(f"❌ Failed to initialize MongoDB: {e}")
-        logger.warning("⚠️ Bot will continue with limited functionality")
+        logger.warning("⚠️ Bot will fallback to JSON files")
     
-    # Load data from files (will be replaced with MongoDB in next update)
+    # Load data from MongoDB or JSON files
     global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
-    loop = asyncio.get_event_loop()
-    channel_langs = await loop.run_in_executor(None, load_channels)
-    bot_ratings = await loop.run_in_executor(None, load_ratings)
-    allowed_roles = await loop.run_in_executor(None, load_allowed_roles)
-    role_languages = await loop.run_in_executor(None, load_role_languages)
-    role_permissions = await loop.run_in_executor(None, load_role_permissions)
-    servers_data = await loop.run_in_executor(None, load_servers)
+    
+    if mongodb_connected:
+        # Load from MongoDB (v3.0)
+        try:
+            await load_data_from_mongodb()
+            logger.info("✅ All data loaded from MongoDB")
+        except Exception as e:
+            logger.error(f"❌ Error loading from MongoDB, falling back to JSON: {e}")
+            loop = asyncio.get_event_loop()
+            channel_langs = await loop.run_in_executor(None, load_channels)
+            bot_ratings = await loop.run_in_executor(None, load_ratings)
+            allowed_roles = await loop.run_in_executor(None, load_allowed_roles)
+            role_languages = await loop.run_in_executor(None, load_role_languages)
+            role_permissions = await loop.run_in_executor(None, load_role_permissions)
+            servers_data = await loop.run_in_executor(None, load_servers)
+    else:
+        # Fallback to JSON files (v2.8 compatibility)
+        loop = asyncio.get_event_loop()
+        channel_langs = await loop.run_in_executor(None, load_channels)
+        bot_ratings = await loop.run_in_executor(None, load_ratings)
+        allowed_roles = await loop.run_in_executor(None, load_allowed_roles)
+        role_languages = await loop.run_in_executor(None, load_role_languages)
+        role_permissions = await loop.run_in_executor(None, load_role_permissions)
+        servers_data = await loop.run_in_executor(None, load_servers)
+        logger.info("✅ All data loaded from JSON files")
     
     # Update server tracking for current guilds
     try:
