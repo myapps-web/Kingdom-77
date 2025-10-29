@@ -1,7 +1,22 @@
+# Kingdom-77 v3.0 Requirements
+# ============================
+
+# Core Bot
 discord.py==2.6.4
+python-dotenv==1.0.0
+
+# Translation
 deep-translator==1.11.4
 langdetect==1.0.9
-python-dotenv==1.0.0
-flask==3.0.0
+
+# Database (MongoDB)
+motor==3.3.2              # Async MongoDB driver
+pymongo==4.6.1            # MongoDB sync driver (for motor)
+dnspython==2.4.2          # Required for MongoDB Atlas
+
+# Web Server
+flask==3.0.0              # Keep-Alive server
+
+# Utilities
 beautifulsoup4>=4.9.1
 requests>=2.23.0
