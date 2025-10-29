@@ -3091,7 +3091,7 @@ class PriorityGuildsView(discord.ui.View):
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Go back to main control panel."""
         if self.parent_view:
-            embed = self.parent_view.get_control_embed()
+            embed = await self.parent_view.get_control_embed()
             await interaction.response.edit_message(embed=embed, view=self.parent_view)
         else:
             await interaction.response.edit_message(content="✅ تم الإغلاق", embed=None, view=None)
