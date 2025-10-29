@@ -3,8 +3,12 @@ Simple MongoDB Connection Test
 """
 import asyncio
 import os
+import sys
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 async def test_simple_connection():
     """Test direct connection to MongoDB."""

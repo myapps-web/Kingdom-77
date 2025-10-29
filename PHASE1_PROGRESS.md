@@ -75,10 +75,10 @@
 
 ```bash
 # Test MongoDB imports
-python test_import.py
+python tests/mongodb/test_import.py
 
 # Test MongoDB connection
-python test_mongodb.py
+python tests/mongodb/test_mongodb.py
 
 # Run data migration (after configuring MongoDB)
 python database/migration.py

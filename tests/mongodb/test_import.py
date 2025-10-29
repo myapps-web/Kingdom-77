@@ -5,6 +5,9 @@ Quick test to verify MongoDB imports work correctly
 import sys
 import os
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 def test_imports():
     """Test that all MongoDB modules can be imported"""
     print("Testing MongoDB imports...")

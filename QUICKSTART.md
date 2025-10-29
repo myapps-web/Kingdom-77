@@ -56,10 +56,10 @@ Quick steps:
 
 ```bash
 # Test MongoDB imports
-python test_import.py
+python tests/mongodb/test_import.py
 
 # Test MongoDB connection
-python test_mongodb.py
+python tests/mongodb/test_mongodb.py
 ```
 
 Expected output:
@@ -103,8 +103,8 @@ Expected log messages:
 
 ## 🔍 Verification Checklist
 
-- [ ] `test_import.py` runs without errors
-- [ ] `test_mongodb.py` connects successfully
+- [ ] `tests/mongodb/test_import.py` runs without errors
+- [ ] `tests/mongodb/test_mongodb.py` connects successfully
 - [ ] Bot starts without MongoDB errors
 - [ ] `/owner` command works
 - [ ] Translation commands work
@@ -114,7 +114,7 @@ Expected log messages:
 
 ### Check Database Statistics
 ```bash
-python test_mongodb.py
+python tests/mongodb/test_mongodb.py
 ```
 
 ### Check Bot Logs
