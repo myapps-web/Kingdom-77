@@ -3466,10 +3466,40 @@ async def help(interaction: discord.Interaction):
     is_admin = interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id
     is_owner = interaction.user.id == BOT_OWNER_ID
     
+    # If bot is disabled, show limited help
+    if bot_disabled:
+        commands_list = [
+            '🔒 **Bot is currently in disabled mode**',
+            '',
+            '**Available Commands:**',
+            '`/help` - Show this help message',
+            '`/ping` - Check bot latency',
+            '`/debug` - Show debug information (Admin only)',
+            '`/sync` - Force sync commands (Owner only)',
+            '',
+            '**Status:**',
+            '⛔ Translation is **disabled**',
+            '⛔ Channel/Role commands are **unavailable**',
+            '⛔ All management features are **offline**',
+            '',
+            '💡 *Only essential commands are active while disabled*'
+        ]
+        
+        desc = '\n'.join(commands_list)
+        emb = make_embed(
+            title='� Bot Commands (Disabled Mode)',
+            description=desc,
+            color=discord.Color.orange()
+        )
+        emb.set_footer(text="Kingdom-77 v2.8 • Bot is temporarily disabled")
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
+    # Normal mode - show all commands
     commands_list = [
-        '**📋 Channel Commands** (`/channel`)',
-        '`/channel setlang [channel]` - Set primary & secondary language',
-        '`/channel removelang [channel]` - Remove language setting',
+        '**�📋 Channel Commands** (`/channel`)',
+        '`/channel addlang [channel]` - Set primary & secondary language',
+        '`/channel deletelang [channel]` - Remove language setting',
         '`/channel quality [channel]` - Change translation quality',
         '',
         '**👁️ View Commands** (`/view`)',
@@ -3491,8 +3521,8 @@ async def help(interaction: discord.Interaction):
         admin_commands = [
             '',
             '**🛡️ Role Commands** (`/role`) *Admin Only*',
-            '`/role add <role>` - Grant bot permissions to role',
-            '`/role remove <role>` - Revoke role permissions',
+            '`/role perms <role>` - Grant bot permissions to role',
+            '`/role editperms <role>` - Edit/Revoke role permissions',
             '`/role setlang <role> <language>` - Assign default language',
             '`/role removelang <role>` - Remove language assignment',
             '',
@@ -3628,6 +3658,16 @@ async def sync_commands(interaction: discord.Interaction):
 @view_group.command(name='lists', description='Browse all bot information with filters and pagination')
 async def view_lists(interaction: discord.Interaction):
     """Unified command to view all lists with tab navigation, filters, and pagination."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     try:
         view = UnifiedListView(interaction)
         embed = view.get_embed()
@@ -3656,6 +3696,16 @@ async def view_lists(interaction: discord.Interaction):
 @app_commands.autocomplete(channel=channel_autocomplete)
 async def channel_setlang(interaction: discord.Interaction, channel: str = None):
     """Set the default language for a channel."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     guild_id = str(interaction.guild.id)
     if not has_permission(interaction.user, guild_id):
         emb = make_embed(
@@ -3734,6 +3784,16 @@ async def channel_setlang(interaction: discord.Interaction, channel: str = None)
 @app_commands.autocomplete(channel=configured_channel_autocomplete)
 async def channel_removelang(interaction: discord.Interaction, channel: str = None):
     """Remove language configuration from a channel."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     guild_id = str(interaction.guild.id)
     if not has_permission(interaction.user, guild_id):
         emb = make_embed(
@@ -3847,6 +3907,16 @@ async def channel_removelang(interaction: discord.Interaction, channel: str = No
 @app_commands.autocomplete(channel=configured_channel_autocomplete)
 async def channel_quality(interaction: discord.Interaction, mode: app_commands.Choice[str], channel: str = None):
     """Set translation quality mode for a channel."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     guild_id = str(interaction.guild.id)
     if not has_permission(interaction.user, guild_id):
         emb = make_embed(
@@ -3941,6 +4011,16 @@ async def channel_quality(interaction: discord.Interaction, mode: app_commands.C
 @bot.tree.command(name='rate', description='Rate your experience with the bot')
 async def rate(interaction: discord.Interaction):
     """Allow users to rate the bot with a star rating system."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     emb = make_embed(
         title='Rate the Bot ⭐',
         description='Please select your rating for the bot:\n\n⭐ = Poor\n⭐⭐ = Fair\n⭐⭐⭐ = Good\n⭐⭐⭐⭐ = Very Good\n⭐⭐⭐⭐⭐ = Excellent',
@@ -3955,6 +4035,16 @@ async def rate(interaction: discord.Interaction):
 @bot.tree.command(name='ratings', description='View bot rating statistics')
 async def ratings(interaction: discord.Interaction):
     """Display overall bot rating statistics."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     if not bot_ratings:
         emb = make_embed(
             title='Bot Ratings 📊',
@@ -4009,6 +4099,16 @@ async def ratings(interaction: discord.Interaction):
 @app_commands.autocomplete(role=mentionable_role_autocomplete)
 async def role_add(interaction: discord.Interaction, role: str):
     """Add a role to the allowed roles list with custom permission selection."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -4125,6 +4225,16 @@ async def role_add(interaction: discord.Interaction, role: str):
 @app_commands.autocomplete(role=allowed_role_autocomplete)
 async def role_remove(interaction: discord.Interaction, role: str):
     """Remove a role from the allowed roles list. Only shows roles that have been added."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -4242,6 +4352,16 @@ async def role_remove(interaction: discord.Interaction, role: str):
 ])
 async def role_setlang(interaction: discord.Interaction, role: discord.Role, language: str):
     """Assign a language to a role for context menu translation."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
@@ -4303,6 +4423,16 @@ async def role_setlang(interaction: discord.Interaction, role: discord.Role, lan
 )
 async def role_removelang(interaction: discord.Interaction, role: discord.Role):
     """Remove language assignment from a role."""
+    # Check if bot is disabled (only owner can use when disabled)
+    if bot_disabled and interaction.user.id != BOT_OWNER_ID:
+        emb = make_embed(
+            title='Bot Disabled',
+            description='🔒 The bot is currently disabled. Commands are unavailable.',
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=emb, ephemeral=True)
+        return
+    
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         emb = make_embed(
             title='Permission Denied',
