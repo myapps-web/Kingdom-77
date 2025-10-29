@@ -14,13 +14,16 @@
 - [ ] Integrate MongoDB into main.py
 - [ ] Test with real data
 
-### Phase 2: Advanced Features (Planned)
-- [ ] Redis caching for performance
-- [ ] Advanced moderation system
-- [ ] Leveling and XP system
-- [ ] Ticket system
-- [ ] Auto-roles on join
-- [ ] Reaction roles
+### Phase 2: Advanced Features (Starting)
+**Status**: Planning Complete ✅  
+**Document**: [PHASE2_PLAN.md](PHASE2_PLAN.md)
+
+- [ ] Redis caching for performance (Priority: High)
+- [ ] Advanced moderation system (Priority: Medium)
+- [ ] Leveling and XP system (Priority: Medium)
+- [ ] Ticket system (Priority: Low)
+- [ ] Auto-roles on join (Priority: Low)
+- [ ] Reaction roles (Priority: Low)
 
 ### Phase 3: Web Dashboard (Planned)
 - [ ] FastAPI backend
