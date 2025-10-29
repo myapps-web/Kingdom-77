@@ -36,8 +36,9 @@ class MongoDB:
             # Test connection
             await self.client.admin.command('ping')
             
-            # Get database name from connection string or use default
-            self.db = self.client.kingdom77
+            # Get database name from environment or use default
+            db_name = os.getenv('MONGODB_DB_NAME', 'kingdom77_bot')
+            self.db = self.client[db_name]
             
             logger.info("✅ Successfully connected to MongoDB")
             return True

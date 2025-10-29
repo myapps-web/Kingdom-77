@@ -7,7 +7,8 @@ Tests MongoDB connection and displays basic info
 import asyncio
 import os
 from dotenv import load_dotenv
-from database import init_database, close_database, db
+import database.mongodb as mongodb_module
+from database import init_database, close_database
 
 
 async def test_connection():
@@ -27,10 +28,25 @@ async def test_connection():
     
     # Connect
     print("\n📡 Connecting to MongoDB...")
-    success = await init_database(mongodb_uri)
-    
-    if not success:
-        print("❌ Connection failed")
+    try:
+        success = await init_database(mongodb_uri)
+        print(f"   init_database returned: {success}")
+        print(f"   db object: {mongodb_module.db}")
+        print(f"   db.client: {mongodb_module.db.client if mongodb_module.db else 'None'}")
+        
+        if not success:
+            print("❌ Connection failed - init_database returned False")
+            return False
+        if not mongodb_module.db:
+            print("❌ Connection failed - db object is None")
+            return False
+        if not mongodb_module.db.client:
+            print("❌ Connection failed - db.client is None")
+            return False
+    except Exception as e:
+        print(f"❌ Connection failed with exception: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     
     print("✅ Connected successfully!")
@@ -40,10 +56,10 @@ async def test_connection():
         print("\n📊 Database Statistics:")
         print("-" * 60)
         
-        guilds_count = await db.db.guilds.count_documents({})
-        channels_count = await db.db.channels.count_documents({})
-        users_count = await db.db.users.count_documents({})
-        ratings_count = await db.db.ratings.count_documents({})
+        guilds_count = await mongodb_module.db.db.guilds.count_documents({})
+        channels_count = await mongodb_module.db.db.channels.count_documents({})
+        users_count = await mongodb_module.db.db.users.count_documents({})
+        ratings_count = await mongodb_module.db.db.ratings.count_documents({})
         
         print(f"   Guilds:     {guilds_count}")
         print(f"   Channels:   {channels_count}")
@@ -53,9 +69,12 @@ async def test_connection():
         # List all collections
         print("\n📋 Collections:")
         print("-" * 60)
-        collections = await db.db.list_collection_names()
-        for coll in collections:
-            print(f"   - {coll}")
+        collections = await mongodb_module.db.db.list_collection_names()
+        if collections:
+            for coll in collections:
+                print(f"   - {coll}")
+        else:
+            print(f"   (No collections yet - database is empty)")
         
         print("\n" + "=" * 60)
         print("✅ Test completed successfully!")
