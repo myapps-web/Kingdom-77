@@ -3290,15 +3290,15 @@ class BotControlView(discord.ui.View):
 # SLASH COMMANDS - BOT OWNER ONLY
 # ============================================================================
 
-@bot.tree.command(name='dashboard', description='🎛️ لوحة تحكم البوت (المالك فقط)')
-async def dashboard_panel(interaction: discord.Interaction):
-    """Display bot dashboard - accessible only by bot owner."""
-    logger.info(f"🔍 Dashboard access attempt by {interaction.user} (ID: {interaction.user.id})")
+@bot.tree.command(name='owner', description='👑 Owner Control Panel - لوحة تحكم المالك')
+async def owner_panel(interaction: discord.Interaction):
+    """Display bot owner control panel - accessible only by bot owner."""
+    logger.info(f"🔍 Owner panel access attempt by {interaction.user} (ID: {interaction.user.id})")
     logger.info(f"🔑 Comparing with BOT_OWNER_ID: {BOT_OWNER_ID}")
     
     # Check if user is the bot owner
     if interaction.user.id != BOT_OWNER_ID:
-        logger.warning(f"⛔ Dashboard access denied for {interaction.user} (ID: {interaction.user.id})")
+        logger.warning(f"⛔ Owner panel access denied for {interaction.user} (ID: {interaction.user.id})")
         emb = make_embed(
             title='Access Denied',
             description='⛔ هذا الأمر مخصص لمالك البوت فقط.',
@@ -3308,12 +3308,12 @@ async def dashboard_panel(interaction: discord.Interaction):
         return
     
     # Create control panel
-    logger.info(f"✅ Dashboard access granted for owner {interaction.user}")
+    logger.info(f"✅ Owner panel access granted for owner {interaction.user}")
     view = BotControlView()
     embed = await view.get_control_embed()
     
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    logger.info(f"Dashboard accessed by owner {interaction.user}")
+    logger.info(f"Owner panel accessed by owner {interaction.user}")
 
 
 # ============================================================================
