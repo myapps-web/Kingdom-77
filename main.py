@@ -28,6 +28,9 @@ import asyncio
 from discord import app_commands
 from discord.ext import commands, tasks
 
+# Import MongoDB database module
+from database import db, init_database, close_database
+
 
 # ============================================================================
 # LOGGING SETUP
@@ -1027,7 +1030,15 @@ async def on_ready():
     logger.info(f"Bot is in {len(bot.guilds)} server(s)")
     logger.info(f"🔑 BOT_OWNER_ID configured as: {BOT_OWNER_ID}")
     
-    # Load data from files
+    # Initialize MongoDB connection
+    try:
+        await init_database()
+        logger.info("✅ MongoDB connection initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize MongoDB: {e}")
+        logger.warning("⚠️ Bot will continue with limited functionality")
+    
+    # Load data from files (will be replaced with MongoDB in next update)
     global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
     loop = asyncio.get_event_loop()
     channel_langs = await loop.run_in_executor(None, load_channels)
@@ -4522,4 +4533,9 @@ if __name__ == '__main__':
     except Exception as e:
         logger.debug(f"Keep-alive error: {e}")
     
-    bot.run(TOKEN)
+    try:
+        bot.run(TOKEN)
+    finally:
+        # Ensure MongoDB connection is closed on bot shutdown
+        asyncio.run(close_database())
+        logger.info("✅ MongoDB connection closed")
