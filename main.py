@@ -456,131 +456,176 @@ def load_servers() -> Dict[str, dict]:
 # ============================================================================
 
 async def save_channels(data: Dict[str, dict]):
-    """Asynchronously save channel language configuration to disk."""
+    """Save channel configurations to MongoDB and JSON (backup)."""
+    # Try MongoDB first
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            for channel_id, settings in data.items():
+                await save_channel_to_mongodb(channel_id, settings)
+            logger.info(f"✅ Saved {len(data)} channel configurations to MongoDB")
+    except Exception as e:
+        logger.error(f"Error saving channels to MongoDB: {e}")
+    
+    # Also save to JSON as backup
     loop = asyncio.get_running_loop()
-
     def _write(d):
         tmp = CHANNELS_FILE + '.tmp'
         try:
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
             os.replace(tmp, CHANNELS_FILE)
-            logger.info(f"Saved {len(d)} channel configurations to {CHANNELS_FILE}")
+            logger.info(f"Saved {len(d)} channel configurations to {CHANNELS_FILE} (backup)")
         except Exception as e:
             logger.error(f"Error saving to {CHANNELS_FILE}: {e}")
-            try:
-                with open(CHANNELS_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(d, f, ensure_ascii=False, indent=2)
-                logger.info(f"Fallback: Saved {len(d)} configurations directly to {CHANNELS_FILE}")
-            except Exception as e2:
-                logger.error(f"Fallback save also failed: {e2}")
 
     await loop.run_in_executor(None, _write, data)
 
 
 async def save_ratings(data: Dict[str, dict]):
-    """Asynchronously save user ratings to disk."""
+    """Save user ratings to MongoDB and JSON (backup)."""
+    # Try MongoDB first
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            for user_id, rating_data in data.items():
+                await save_rating_to_mongodb(user_id, rating_data)
+            logger.info(f"✅ Saved {len(data)} ratings to MongoDB")
+    except Exception as e:
+        logger.error(f"Error saving ratings to MongoDB: {e}")
+    
+    # Also save to JSON as backup
     loop = asyncio.get_running_loop()
-
     def _write(d):
         tmp = RATINGS_FILE + '.tmp'
         try:
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
             os.replace(tmp, RATINGS_FILE)
-            logger.info(f"Saved {len(d)} ratings to {RATINGS_FILE}")
+            logger.info(f"Saved {len(d)} ratings to {RATINGS_FILE} (backup)")
         except Exception as e:
             logger.error(f"Error saving to {RATINGS_FILE}: {e}")
-            try:
-                with open(RATINGS_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(d, f, ensure_ascii=False, indent=2)
-                logger.info(f"Fallback: Saved {len(d)} ratings directly to {RATINGS_FILE}")
-            except Exception as e2:
-                logger.error(f"Fallback save also failed: {e2}")
 
     await loop.run_in_executor(None, _write, data)
 
 
 async def save_allowed_roles(data: Dict[str, list]):
-    """Asynchronously save allowed roles to disk."""
+    """Save allowed roles to MongoDB and JSON (backup)."""
+    # Try MongoDB first
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            for guild_id, roles in data.items():
+                await save_guild_to_mongodb(guild_id, {
+                    "guild_id": guild_id,
+                    "roles.allowed_roles": roles
+                })
+            logger.info(f"✅ Saved allowed roles for {len(data)} guilds to MongoDB")
+    except Exception as e:
+        logger.error(f"Error saving allowed roles to MongoDB: {e}")
+    
+    # Also save to JSON as backup
     loop = asyncio.get_running_loop()
-
     def _write(d):
         tmp = ROLES_FILE + '.tmp'
         try:
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
             os.replace(tmp, ROLES_FILE)
-            logger.info(f"Saved allowed roles for {len(d)} guilds to {ROLES_FILE}")
+            logger.info(f"Saved allowed roles for {len(d)} guilds to {ROLES_FILE} (backup)")
         except Exception as e:
             logger.error(f"Error saving to {ROLES_FILE}: {e}")
-            try:
-                with open(ROLES_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(d, f, ensure_ascii=False, indent=2)
-                logger.info(f"Fallback: Saved allowed roles directly to {ROLES_FILE}")
-            except Exception as e2:
-                logger.error(f"Fallback save also failed: {e2}")
 
     await loop.run_in_executor(None, _write, data)
 
 
 async def save_role_languages(data: Dict[str, Dict[str, str]]):
-    """Asynchronously save role language mappings to disk."""
+    """Save role language mappings to MongoDB and JSON (backup)."""
+    # Try MongoDB first
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            for guild_id, role_langs in data.items():
+                await save_guild_to_mongodb(guild_id, {
+                    "guild_id": guild_id,
+                    "roles.role_languages": role_langs
+                })
+            logger.info(f"✅ Saved role languages for {len(data)} guilds to MongoDB")
+    except Exception as e:
+        logger.error(f"Error saving role languages to MongoDB: {e}")
+    
+    # Also save to JSON as backup
     loop = asyncio.get_running_loop()
-
     def _write(d):
         tmp = ROLE_LANGUAGES_FILE + '.tmp'
         try:
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
             os.replace(tmp, ROLE_LANGUAGES_FILE)
-            logger.info(f"Saved role languages for {len(d)} guilds to {ROLE_LANGUAGES_FILE}")
+            logger.info(f"Saved role languages for {len(d)} guilds to {ROLE_LANGUAGES_FILE} (backup)")
         except Exception as e:
             logger.error(f"Error saving to {ROLE_LANGUAGES_FILE}: {e}")
-            try:
-                with open(ROLE_LANGUAGES_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(d, f, ensure_ascii=False, indent=2)
-                logger.info(f"Fallback: Saved role languages directly to {ROLE_LANGUAGES_FILE}")
-            except Exception as e2:
-                logger.error(f"Fallback save also failed: {e2}")
 
     await loop.run_in_executor(None, _write, data)
 
 
 async def save_role_permissions(data: Dict[str, Dict[str, list]]):
-    """Asynchronously save role permissions to disk."""
+    """Save role permissions to MongoDB and JSON (backup)."""
+    # Try MongoDB first
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            for guild_id, role_perms in data.items():
+                await save_guild_to_mongodb(guild_id, {
+                    "guild_id": guild_id,
+                    "roles.role_permissions": role_perms
+                })
+            logger.info(f"✅ Saved role permissions for {len(data)} guilds to MongoDB")
+    except Exception as e:
+        logger.error(f"Error saving role permissions to MongoDB: {e}")
+    
+    # Also save to JSON as backup
     loop = asyncio.get_running_loop()
-
     def _write(d):
         tmp = ROLE_PERMISSIONS_FILE + '.tmp'
         try:
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
             os.replace(tmp, ROLE_PERMISSIONS_FILE)
-            logger.info(f"Saved role permissions for {len(d)} guilds to {ROLE_PERMISSIONS_FILE}")
+            logger.info(f"Saved role permissions for {len(d)} guilds to {ROLE_PERMISSIONS_FILE} (backup)")
         except Exception as e:
             logger.error(f"Error saving to {ROLE_PERMISSIONS_FILE}: {e}")
-            try:
-                with open(ROLE_PERMISSIONS_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(d, f, ensure_ascii=False, indent=2)
-                logger.info(f"Fallback: Saved role permissions directly to {ROLE_PERMISSIONS_FILE}")
-            except Exception as e2:
-                logger.error(f"Fallback save also failed: {e2}")
 
     await loop.run_in_executor(None, _write, data)
 
 
 async def save_servers(data: Dict[str, dict]):
-    """Asynchronously save server information to disk."""
+    """Save server information to MongoDB and JSON (backup)."""
+    # Try MongoDB first
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            for guild_id, server_info in data.items():
+                await save_guild_to_mongodb(guild_id, {
+                    "guild_id": guild_id,
+                    "name": server_info.get('name'),
+                    "joined_at": server_info.get('joined_at'),
+                    "active": server_info.get('active', True),
+                    "left_at": server_info.get('left_at')
+                })
+            logger.info(f"✅ Saved {len(data)} server records to MongoDB")
+    except Exception as e:
+        logger.error(f"Error saving servers to MongoDB: {e}")
+    
+    # Also save to JSON as backup
     loop = asyncio.get_running_loop()
-
     def _write(d):
         tmp = SERVERS_FILE + '.tmp'
         try:
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(d, f, ensure_ascii=False, indent=2)
             os.replace(tmp, SERVERS_FILE)
-            logger.info(f"Saved {len(d)} server records to {SERVERS_FILE}")
+            logger.info(f"Saved {len(d)} server records to {SERVERS_FILE} (backup)")
         except Exception as e:
             logger.error(f"Error saving to {SERVERS_FILE}: {e}")
             try:
@@ -685,6 +730,93 @@ async def load_data_from_mongodb():
         role_languages = {}
         role_permissions = {}
         servers_data = {}
+
+
+async def save_channel_to_mongodb(channel_id: str, settings: dict):
+    """Save single channel settings to MongoDB."""
+    try:
+        import database.mongodb as mongodb_module
+        if not mongodb_module.db or not mongodb_module.db.client:
+            logger.warning("MongoDB not connected, skipping save")
+            return False
+        
+        await mongodb_module.db.db.channels.update_one(
+            {"channel_id": channel_id},
+            {
+                "$set": {
+                    "channel_id": channel_id,
+                    "primary": settings.get('primary'),
+                    "secondary": settings.get('secondary'),
+                    "blacklisted_languages": settings.get('blacklisted_languages', []),
+                    "translation_quality": settings.get('translation_quality', 'fast')
+                }
+            },
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error saving channel to MongoDB: {e}")
+        return False
+
+
+async def save_rating_to_mongodb(user_id: str, rating_data: dict):
+    """Save user rating to MongoDB."""
+    try:
+        import database.mongodb as mongodb_module
+        if not mongodb_module.db or not mongodb_module.db.client:
+            logger.warning("MongoDB not connected, skipping save")
+            return False
+        
+        await mongodb_module.db.db.ratings.update_one(
+            {"user_id": user_id},
+            {
+                "$set": {
+                    "user_id": user_id,
+                    "rating": rating_data.get('rating'),
+                    "comment": rating_data.get('comment', ''),
+                    "timestamp": rating_data.get('timestamp')
+                }
+            },
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error saving rating to MongoDB: {e}")
+        return False
+
+
+async def save_guild_to_mongodb(guild_id: str, guild_data: dict):
+    """Save guild settings to MongoDB."""
+    try:
+        import database.mongodb as mongodb_module
+        if not mongodb_module.db or not mongodb_module.db.client:
+            logger.warning("MongoDB not connected, skipping save")
+            return False
+        
+        await mongodb_module.db.db.guilds.update_one(
+            {"guild_id": guild_id},
+            {"$set": guild_data},
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error saving guild to MongoDB: {e}")
+        return False
+
+
+async def delete_channel_from_mongodb(channel_id: str):
+    """Delete channel from MongoDB."""
+    try:
+        import database.mongodb as mongodb_module
+        if not mongodb_module.db or not mongodb_module.db.client:
+            logger.warning("MongoDB not connected, skipping delete")
+            return False
+        
+        await mongodb_module.db.db.channels.delete_one({"channel_id": channel_id})
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting channel from MongoDB: {e}")
+        return False
 
 
 def update_bot_stats():
