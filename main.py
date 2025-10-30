@@ -1441,6 +1441,62 @@ async def on_ready():
                 logger.error(f"❌ Failed to load premium cog: {e}")
         except Exception as e:
             logger.error(f"❌ Failed to initialize Premium System: {e}")
+        
+        # Initialize Auto-Messages System
+        try:
+            from automessages.automessage_system import AutoMessageSystem
+            bot.automessage_system = AutoMessageSystem(db.client)
+            logger.info("✅ Auto-Messages System initialized successfully")
+            
+            # Load Auto-Messages cog
+            try:
+                await bot.load_extension("cogs.cogs.automessages")
+                logger.info("✅ Auto-Messages cog loaded successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to load automessages cog: {e}")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Auto-Messages System: {e}")
+        
+        # Initialize Social Integration System
+        try:
+            from integrations.social_integration import SocialIntegrationSystem
+            
+            # Prepare API config for platforms
+            config = {
+                "twitch_client_id": os.getenv("TWITCH_CLIENT_ID"),
+                "twitch_client_secret": os.getenv("TWITCH_CLIENT_SECRET"),
+                "twitter_bearer_token": os.getenv("TWITTER_BEARER_TOKEN")
+            }
+            
+            bot.social_system = SocialIntegrationSystem(db.client, config)
+            await bot.social_system.initialize()
+            logger.info("✅ Social Integration System initialized successfully")
+            
+            # Load Social cog
+            try:
+                await bot.load_extension("cogs.cogs.social")
+                logger.info("✅ Social Integration cog loaded successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to load social cog: {e}")
+            
+            # Start background task for checking social links (every 5 minutes)
+            @tasks.loop(minutes=5)
+            async def check_social_media_task():
+                """Check all social media links for new content"""
+                try:
+                    await bot.social_system.check_all_links(bot)
+                except Exception as e:
+                    logger.error(f"Error in social media check task: {e}")
+            
+            @check_social_media_task.before_loop
+            async def before_social_check():
+                await bot.wait_until_ready()
+            
+            check_social_media_task.start()
+            logger.info("✅ Social media background task started (5 min interval)")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Social Integration System: {e}")
     
     # Load data from MongoDB or JSON files
     global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
