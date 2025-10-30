@@ -31,6 +31,9 @@ from discord.ext import commands, tasks
 # Import MongoDB database module
 from database import db, init_database, close_database
 
+# Import Redis cache module
+from cache import cache, init_cache, close_cache
+
 
 # ============================================================================
 # LOGGING SETUP
@@ -44,6 +47,9 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
+
+# Bot version
+VERSION = "3.6"
 
 # Load environment variables
 load_dotenv()
@@ -732,6 +738,100 @@ async def load_data_from_mongodb():
         servers_data = {}
 
 
+# ============================================================================
+# CACHE LAYER (v3.0)
+# ============================================================================
+
+async def get_channel_settings_cached(channel_id: str) -> dict:
+    """Get channel settings from cache or MongoDB.
+    
+    Args:
+        channel_id: Discord channel ID
+        
+    Returns:
+        Channel settings dict or None
+    """
+    # Try cache first
+    if cache and cache.connected:
+        cached = await cache.get_json(f"channel:{channel_id}")
+        if cached:
+            logger.debug(f"Cache HIT: channel:{channel_id}")
+            return cached
+        logger.debug(f"Cache MISS: channel:{channel_id}")
+    
+    # Load from MongoDB
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            doc = await mongodb_module.db.db.channels.find_one({"channel_id": channel_id})
+            if doc:
+                settings = {
+                    'primary': doc.get('primary'),
+                    'secondary': doc.get('secondary'),
+                    'blacklisted_languages': doc.get('blacklisted_languages', []),
+                    'translation_quality': doc.get('translation_quality', 'fast')
+                }
+                # Cache for 5 minutes
+                if cache and cache.connected:
+                    await cache.set_json(f"channel:{channel_id}", settings, ttl=300)
+                return settings
+    except Exception as e:
+        logger.error(f"Error loading channel from MongoDB: {e}")
+    
+    return None
+
+
+async def get_guild_settings_cached(guild_id: str) -> dict:
+    """Get guild settings from cache or MongoDB.
+    
+    Args:
+        guild_id: Discord guild ID
+        
+    Returns:
+        Guild settings dict or None
+    """
+    # Try cache first
+    if cache and cache.connected:
+        cached = await cache.get_json(f"guild:{guild_id}")
+        if cached:
+            logger.debug(f"Cache HIT: guild:{guild_id}")
+            return cached
+        logger.debug(f"Cache MISS: guild:{guild_id}")
+    
+    # Load from MongoDB
+    try:
+        import database.mongodb as mongodb_module
+        if mongodb_module.db and mongodb_module.db.client:
+            doc = await mongodb_module.db.db.guilds.find_one({"guild_id": guild_id})
+            if doc:
+                # Cache for 10 minutes
+                if cache and cache.connected:
+                    await cache.set_json(f"guild:{guild_id}", doc, ttl=600)
+                return doc
+    except Exception as e:
+        logger.error(f"Error loading guild from MongoDB: {e}")
+    
+    return None
+
+
+async def invalidate_channel_cache(channel_id: str):
+    """Invalidate channel settings cache."""
+    if cache and cache.connected:
+        await cache.delete(f"channel:{channel_id}")
+        logger.debug(f"Invalidated cache: channel:{channel_id}")
+
+
+async def invalidate_guild_cache(guild_id: str):
+    """Invalidate guild settings cache."""
+    if cache and cache.connected:
+        await cache.delete(f"guild:{guild_id}")
+        logger.debug(f"Invalidated cache: guild:{guild_id}")
+
+
+# ============================================================================
+# MONGODB SAVE OPERATIONS
+# ============================================================================
+
 async def save_channel_to_mongodb(channel_id: str, settings: dict):
     """Save single channel settings to MongoDB."""
     try:
@@ -753,6 +853,10 @@ async def save_channel_to_mongodb(channel_id: str, settings: dict):
             },
             upsert=True
         )
+        
+        # Invalidate cache
+        await invalidate_channel_cache(channel_id)
+        
         return True
     except Exception as e:
         logger.error(f"Error saving channel to MongoDB: {e}")
@@ -1256,6 +1360,20 @@ async def on_ready():
     logger.info(f"Bot is in {len(bot.guilds)} server(s)")
     logger.info(f"🔑 BOT_OWNER_ID configured as: {BOT_OWNER_ID}")
     
+    # Initialize Redis cache (optional - improves performance)
+    redis_connected = False
+    redis_url = os.getenv('REDIS_URL') or os.getenv('REDIS_URI')
+    if redis_url:
+        try:
+            await init_cache(redis_url)
+            redis_connected = True
+            logger.info("✅ Redis cache initialized successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Redis: {e}")
+            logger.warning("⚠️ Bot will continue without caching")
+    else:
+        logger.info("ℹ️ Redis not configured - skipping cache initialization")
+    
     # Initialize MongoDB connection
     mongodb_connected = False
     try:
@@ -1265,6 +1383,32 @@ async def on_ready():
     except Exception as e:
         logger.error(f"❌ Failed to initialize MongoDB: {e}")
         logger.warning("⚠️ Bot will fallback to JSON files")
+    
+    # Load Moderation and Leveling Cogs if MongoDB is available
+    if mongodb_connected:
+        try:
+            await bot.load_extension("cogs.cogs.moderation")
+            logger.info("✅ Moderation cog loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load moderation cog: {e}")
+        
+        try:
+            await bot.load_extension("cogs.cogs.leveling")
+            logger.info("✅ Leveling cog loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load leveling cog: {e}")
+        
+        try:
+            await bot.load_extension("cogs.cogs.tickets")
+            logger.info("✅ Tickets cog loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load tickets cog: {e}")
+        
+        try:
+            await bot.load_extension("cogs.cogs.autoroles")
+            logger.info("✅ Auto-Roles cog loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load autoroles cog: {e}")
     
     # Load data from MongoDB or JSON files
     global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
@@ -1564,6 +1708,81 @@ async def on_message(message: discord.Message):
         # Ignore bots and webhooks
         if message.author.bot or message.webhook_id:
             return
+        
+        # Handle XP for leveling system (Nova style)
+        if message.guild and not message.author.bot:
+            try:
+                from leveling.level_system import get_leveling_system
+                if db and db.client:
+                    leveling = get_leveling_system(db.db)
+                    config = await leveling.get_guild_config(str(message.guild.id))
+                    
+                    # Check if leveling is enabled
+                    if config.get("enabled", True):
+                        # Check if channel is excluded
+                        no_xp_channels = config.get("no_xp_channels", [])
+                        if str(message.channel.id) not in no_xp_channels:
+                            # Check if user has excluded role
+                            no_xp_roles = config.get("no_xp_roles", [])
+                            member = message.guild.get_member(message.author.id)
+                            if member and not any(str(role.id) in no_xp_roles for role in member.roles):
+                                # Check cooldown (60 seconds by default)
+                                cooldown = config.get("cooldown", 60)
+                                on_cooldown = await leveling.check_cooldown(
+                                    str(message.guild.id),
+                                    str(message.author.id),
+                                    cooldown
+                                )
+                                
+                                if not on_cooldown:
+                                    # Calculate XP (15-25 by default, Nova style)
+                                    xp_gain = await leveling.calculate_xp_gain(
+                                        str(message.guild.id),
+                                        str(message.author.id),
+                                        member
+                                    )
+                                    
+                                    # Add XP
+                                    leveled_up, new_level, user_data = await leveling.add_xp(
+                                        str(message.guild.id),
+                                        str(message.author.id),
+                                        xp_gain
+                                    )
+                                    
+                                    # Assign level roles if leveled up
+                                    if leveled_up:
+                                        try:
+                                            from autoroles import AutoRoleSystem
+                                            autorole_system = AutoRoleSystem(db.db)
+                                            await autorole_system.assign_level_roles(
+                                                message.guild.id,
+                                                message.author.id,
+                                                new_level,
+                                                bot
+                                            )
+                                        except Exception as role_error:
+                                            logger.error(f"Error assigning level roles: {role_error}")
+                                    
+                                    # Announce level up (Nova style)
+                                    if leveled_up and config.get("announce_level_up", True):
+                                        level_up_msg = config.get(
+                                            "level_up_message",
+                                            "🎉 {user} leveled up to **Level {level}**!"
+                                        )
+                                        level_up_msg = level_up_msg.replace("{user}", member.mention)
+                                        level_up_msg = level_up_msg.replace("{level}", str(new_level))
+                                        
+                                        # Send in same channel or custom channel
+                                        level_up_channel_id = config.get("level_up_channel")
+                                        target_channel = message.channel
+                                        if level_up_channel_id:
+                                            custom_channel = message.guild.get_channel(int(level_up_channel_id))
+                                            if custom_channel:
+                                                target_channel = custom_channel
+                                        
+                                        await target_channel.send(level_up_msg)
+            except Exception as e:
+                logger.error(f"Error in XP handler: {e}")
 
         channel_id = str(message.channel.id)
         channel_config = channel_langs.get(channel_id)
@@ -1705,6 +1924,82 @@ async def on_message(message: discord.Message):
     
     except Exception as e:
         logger.error(f"❌ Error in on_message handler: {e}", exc_info=True)
+
+
+# ============================================================================
+# AUTO-ROLES EVENT HANDLERS
+# ============================================================================
+
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    """Handle reaction add for Reaction Roles"""
+    try:
+        # Ignore bot reactions
+        if payload.user_id == bot.user.id:
+            return
+        
+        # Check if MongoDB is connected
+        if not db or not db.client:
+            return
+        
+        from autoroles import AutoRoleSystem
+        autorole_system = AutoRoleSystem(db.db)
+        
+        # Handle reaction
+        role = await autorole_system.handle_reaction_add(payload, bot)
+        
+        if role:
+            logger.info(f"✅ Reaction Role: Gave {role.name} to user {payload.user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error in on_raw_reaction_add: {e}", exc_info=True)
+
+
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    """Handle reaction remove for Reaction Roles"""
+    try:
+        # Ignore bot reactions
+        if payload.user_id == bot.user.id:
+            return
+        
+        # Check if MongoDB is connected
+        if not db or not db.client:
+            return
+        
+        from autoroles import AutoRoleSystem
+        autorole_system = AutoRoleSystem(db.db)
+        
+        # Handle reaction
+        role = await autorole_system.handle_reaction_remove(payload, bot)
+        
+        if role:
+            logger.info(f"✅ Reaction Role: Removed {role.name} from user {payload.user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error in on_raw_reaction_remove: {e}", exc_info=True)
+
+
+@bot.event
+async def on_member_join(member: discord.Member):
+    """Handle member join for Join Roles"""
+    try:
+        # Check if MongoDB is connected
+        if not db or not db.client:
+            return
+        
+        from autoroles import AutoRoleSystem
+        autorole_system = AutoRoleSystem(db.db)
+        
+        # Assign join roles
+        roles = await autorole_system.assign_join_roles(member)
+        
+        if roles:
+            roles_names = [r.name for r in roles]
+            logger.info(f"✅ Join Roles: Gave {', '.join(roles_names)} to {member.name}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error in on_member_join: {e}", exc_info=True)
 
 
 # ============================================================================
@@ -3516,7 +3811,7 @@ class BotControlView(discord.ui.View):
             value=f'**Servers:** {len(bot.guilds)}\n'
                   f'**Users:** {sum(g.member_count for g in bot.guilds):,}\n'
                   f'**Latency:** {round(bot.latency * 1000)}ms\n'
-                  f'**Version:** Kingdom-77 v2.8',
+                  f'**Version:** Kingdom-77 v{VERSION}',
             inline=True
         )
         
@@ -3700,7 +3995,7 @@ async def botstats(interaction: discord.Interaction):
         latency_ms = round(bot.latency * 1000)
         bot_info = f"**Latency:** {latency_ms} ms\n"
         bot_info += f"**Uptime:** Since restart\n"
-        bot_info += f"**Version:** Kingdom-77 v2.8"
+        bot_info += f"**Version:** Kingdom-77 v{VERSION}"
         emb.add_field(name='🤖 Bot Info', value=bot_info, inline=True)
         
         emb.set_footer(text=f"Bot ID: {bot.user.id} • Use /rate to rate the bot!")
@@ -4781,7 +5076,13 @@ if __name__ == '__main__':
     
     try:
         bot.run(TOKEN)
+    except KeyboardInterrupt:
+        logger.info("Bot shutdown requested...")
     finally:
-        # Ensure MongoDB connection is closed on bot shutdown
-        asyncio.run(close_database())
-        logger.info("✅ MongoDB connection closed")
+        # Cleanup connections
+        async def cleanup():
+            await close_cache()
+            await close_database()
+            logger.info("✅ Connections closed gracefully")
+        
+        asyncio.run(cleanup())

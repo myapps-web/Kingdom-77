@@ -14,6 +14,9 @@ motor==3.3.2              # Async MongoDB driver
 pymongo==4.6.1            # MongoDB sync driver (for motor)
 dnspython==2.4.2          # Required for MongoDB Atlas
 
+# Cache (Redis)
+redis==5.0.1              # Redis client with async support
+
 # Web Server
 flask==3.0.0              # Keep-Alive server
 
