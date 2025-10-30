@@ -1,5 +1,61 @@
 # Changelog
 
+## [v3.9.0] - 2025-10-30
+
+### ✨ New Features
+- **Premium Credits Payment System** 💎
+  - Purchase Premium subscriptions using K77 Credits
+  - Monthly Premium: 500 ❄️ credits
+  - Yearly Premium: 5,000 ❄️ credits (save 1,000)
+  - `/premium subscribe payment_method:credits` command
+  - Confirmation UI with balance display
+  - Dashboard API endpoint: `/api/premium/{guild_id}/subscribe-with-credits`
+
+- **Moyasar Payment Integration** 💳
+  - Full integration with Moyasar (Saudi Arabia payment gateway)
+  - Support for: مدى، Visa, Mastercard, Apple Pay, STC Pay
+  - `payment/moyasar_integration.py` (350+ lines)
+  - Webhook automation for automatic credits addition
+  - SAR currency support (1 USD = 3.75 SAR)
+  - Payment verification and refund support
+  - Dashboard endpoint: `/api/credits/webhook/moyasar`
+
+- **Custom Bot Branding Commands** 🎨
+  - `/branding setup` - Setup custom bot branding (Premium)
+  - `/branding preview` - Preview current branding
+  - `/branding status` - View branding settings
+  - `/branding reset` - Reset to default
+  - Modal UI for easy configuration
+
+### 🔄 Changes
+- Updated `premium/premium_system.py` to support Credits payment
+- Enhanced `economy/credits_system.py` with Moyasar integration
+- Updated Dashboard APIs to support Credits payment for Premium
+- Improved error handling across all payment systems
+- Enhanced webhook processing for Moyasar events
+
+### 🔧 Technical
+- Added `PAYMENT_PROVIDER` environment variable (stripe/moyasar)
+- Added Moyasar API keys to `.env`
+- Support for multiple payment providers
+- Improved webhook signature verification
+- Better currency conversion handling
+
+### 📚 Documentation
+- Added `docs/PHASE5.6_TASKS_9_10_COMPLETE.md` - Complete guide for Tasks 9 & 10
+- Updated TODO.md with Phase 5.6 completion status
+- Added Moyasar setup instructions
+- Payment integration examples
+
+### 📊 Statistics
+- ~915 lines of new code
+- 3 new API endpoints
+- 4 new Discord commands
+- 2 payment gateways (Stripe + Moyasar)
+- Total: ~21,900+ lines of code
+
+---
+
 ## [v2.8] - 2025-10-28
 
 ### ✨ New Features

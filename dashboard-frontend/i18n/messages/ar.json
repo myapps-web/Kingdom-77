@@ -1,0 +1,352 @@
+{
+  "common": {
+    "brand": "Kingdom-77",
+    "welcome": "مرحباً",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجح",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "import": "استيراد",
+    "logout": "تسجيل خروج",
+    "login": "تسجيل دخول",
+    "signup": "إنشاء حساب",
+    "language": "اللغة",
+    "theme": "المظهر",
+    "settings": "الإعدادات"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "servers": "السيرفرات",
+    "moderation": "الإدارة",
+    "leveling": "نظام المستويات",
+    "tickets": "التذاكر",
+    "autoroles": "الرتب التلقائية",
+    "premium": "البريميوم",
+    "settings": "الإعدادات",
+    "documentation": "التوثيق",
+    "support": "الدعم"
+  },
+  "home": {
+    "title": "لوحة تحكم Kingdom-77",
+    "subtitle": "أدر سيرفرات الديسكورد الخاصة بك بسهولة",
+    "features": {
+      "title": "المميزات",
+      "moderation": {
+        "title": "إدارة متقدمة",
+        "description": "حافظ على سيرفرك آمناً بأدوات إدارة قوية"
+      },
+      "leveling": {
+        "title": "XP والمستويات",
+        "description": "كافئ الأعضاء النشطين بنظام مستويات قابل للتخصيص"
+      },
+      "tickets": {
+        "title": "نظام التذاكر",
+        "description": "تذاكر دعم احترافية مع فئات ونسخ محفوظة"
+      },
+      "premium": {
+        "title": "مميزات البريميوم",
+        "description": "افتح المميزات المتقدمة باشتراك البريميوم"
+      }
+    },
+    "getStarted": "ابدأ الآن",
+    "viewServers": "عرض السيرفرات",
+    "documentation": "التوثيق"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "selectServer": "اختر سيرفر للإدارة",
+    "noServers": "لا توجد سيرفرات",
+    "overview": "نظرة عامة",
+    "statistics": {
+      "title": "الإحصائيات",
+      "members": "الأعضاء",
+      "online": "متصل",
+      "channels": "القنوات",
+      "roles": "الرتب",
+      "commands": "الأوامر المستخدمة",
+      "messages": "الرسائل اليوم"
+    },
+    "recentActivity": {
+      "title": "النشاط الأخير",
+      "noActivity": "لا يوجد نشاط حديث"
+    },
+    "quickActions": {
+      "title": "إجراءات سريعة",
+      "setupModeration": "إعداد الإدارة",
+      "configureLeveling": "تكوين المستويات",
+      "createTicket": "إنشاء فئة تذاكر",
+      "managePremium": "إدارة البريميوم"
+    }
+  },
+  "servers": {
+    "title": "سيرفراتك",
+    "manage": "إدارة",
+    "setup": "إعداد",
+    "noPermission": "ليس لديك صلاحية لإدارة هذا السيرفر",
+    "setupRequired": "يتطلب الإعداد",
+    "setupDescription": "قم بتكوين البوت لهذا السيرفر",
+    "totalMembers": "إجمالي الأعضاء",
+    "managedBy": "يديره",
+    "viewDetails": "عرض التفاصيل"
+  },
+  "moderation": {
+    "title": "الإدارة",
+    "logs": {
+      "title": "سجلات الإدارة",
+      "action": "الإجراء",
+      "moderator": "المشرف",
+      "target": "الهدف",
+      "reason": "السبب",
+      "timestamp": "الوقت",
+      "type": {
+        "ban": "حظر",
+        "unban": "إلغاء حظر",
+        "kick": "طرد",
+        "timeout": "إسكات",
+        "warn": "تحذير",
+        "clear": "مسح الرسائل"
+      }
+    },
+    "settings": {
+      "title": "إعدادات الإدارة",
+      "automod": "الإدارة التلقائية",
+      "automodDescription": "إدارة سيرفرك تلقائياً",
+      "logChannel": "قناة السجلات",
+      "logChannelDescription": "القناة لإرسال سجلات الإدارة",
+      "muteRole": "رتبة الإسكات",
+      "muteRoleDescription": "الرتبة المستخدمة للإسكات"
+    },
+    "actions": {
+      "title": "إجراءات سريعة",
+      "ban": "حظر عضو",
+      "kick": "طرد عضو",
+      "timeout": "إسكات عضو",
+      "warn": "تحذير عضو",
+      "viewLogs": "عرض السجلات"
+    }
+  },
+  "leveling": {
+    "title": "نظام المستويات",
+    "leaderboard": {
+      "title": "لوحة الصدارة",
+      "rank": "الترتيب",
+      "member": "العضو",
+      "level": "المستوى",
+      "xp": "XP",
+      "messages": "الرسائل"
+    },
+    "settings": {
+      "title": "إعدادات المستويات",
+      "enabled": "تفعيل المستويات",
+      "enabledDescription": "تفعيل نظام XP والمستويات",
+      "xpPerMessage": "XP لكل رسالة",
+      "xpPerMessageDescription": "كمية XP الممنوحة لكل رسالة",
+      "levelUpMessage": "رسالة الترقية",
+      "levelUpMessageDescription": "الرسالة المرسلة عند ترقية المستخدم",
+      "levelUpChannel": "قناة الترقية",
+      "levelUpChannelDescription": "القناة لإرسال رسائل الترقية",
+      "stackRoles": "تراكم رتب المستويات",
+      "stackRolesDescription": "الاحتفاظ برتب المستويات السابقة عند الترقية"
+    },
+    "rewards": {
+      "title": "مكافآت المستويات",
+      "addReward": "إضافة مكافأة",
+      "level": "المستوى",
+      "role": "الرتبة",
+      "noRewards": "لا توجد مكافآت مستويات مكونة"
+    }
+  },
+  "tickets": {
+    "title": "نظام التذاكر",
+    "categories": {
+      "title": "فئات التذاكر",
+      "addCategory": "إضافة فئة",
+      "name": "اسم الفئة",
+      "description": "الوصف",
+      "emoji": "الإيموجي",
+      "supportRole": "رتبة الدعم",
+      "noCategories": "لا توجد فئات تذاكر مكونة"
+    },
+    "settings": {
+      "title": "إعدادات التذاكر",
+      "enabled": "تفعيل التذاكر",
+      "enabledDescription": "تفعيل نظام التذاكر",
+      "ticketChannel": "قناة لوحة التذاكر",
+      "ticketChannelDescription": "القناة لإرسال لوحة التذاكر",
+      "categoryChannel": "فئة التذاكر",
+      "categoryChannelDescription": "الفئة لقنوات التذاكر",
+      "transcripts": "حفظ النسخ",
+      "transcriptsDescription": "حفظ نسخ التذاكر عند الإغلاق",
+      "transcriptChannel": "قناة النسخ",
+      "transcriptChannelDescription": "القناة لإرسال النسخ"
+    },
+    "active": {
+      "title": "التذاكر النشطة",
+      "ticket": "التذكرة",
+      "user": "المستخدم",
+      "category": "الفئة",
+      "opened": "فتحت",
+      "status": "الحالة",
+      "noActive": "لا توجد تذاكر نشطة"
+    }
+  },
+  "autoroles": {
+    "title": "الرتب التلقائية",
+    "description": "إسناد الرتب تلقائياً للأعضاء الجدد",
+    "rules": {
+      "title": "قواعد الرتب التلقائية",
+      "addRule": "إضافة قاعدة",
+      "type": "النوع",
+      "role": "الرتبة",
+      "condition": "الشرط",
+      "noRules": "لا توجد قواعد رتب تلقائية مكونة"
+    },
+    "types": {
+      "join": "عند الانضمام",
+      "verified": "عند التحقق",
+      "boost": "عند الدعم",
+      "level": "عند الترقية"
+    }
+  },
+  "premium": {
+    "title": "البريميوم",
+    "description": "افتح المميزات المتقدمة مع البريميوم",
+    "currentPlan": "الخطة الحالية",
+    "freePlan": "خطة مجانية",
+    "premiumPlan": "خطة بريميوم",
+    "trial": {
+      "title": "تجربة مجانية",
+      "description": "جرب البريميوم مجاناً لمدة 7 أيام",
+      "startTrial": "بدء التجربة",
+      "trialActive": "التجربة نشطة",
+      "daysLeft": "أيام متبقية"
+    },
+    "features": {
+      "title": "مميزات البريميوم",
+      "xpBoost": "زيادة XP 2x",
+      "xpBoostDescription": "مضاعفة XP لجميع الأعضاء",
+      "customColors": "ألوان مخصصة",
+      "customColorsDescription": "تخصيص ألوان رسائل البوت",
+      "prioritySupport": "دعم أولوية",
+      "prioritySupportDescription": "احصل على مساعدة أسرع مع دعم الأولوية",
+      "advancedStats": "إحصائيات متقدمة",
+      "advancedStatsDescription": "تحليلات تفصيلية للسيرفر",
+      "customCommands": "أوامر مخصصة",
+      "customCommandsDescription": "أنشئ أوامرك الخاصة",
+      "moreCategories": "فئات تذاكر غير محدودة",
+      "moreCategoriesDescription": "أنشئ عدد غير محدود من فئات التذاكر"
+    },
+    "pricing": {
+      "title": "الأسعار",
+      "monthly": "شهري",
+      "yearly": "سنوي",
+      "perMonth": "في الشهر",
+      "perYear": "في السنة",
+      "save": "وفر {percent}%",
+      "subscribe": "اشترك",
+      "manage": "إدارة الاشتراك"
+    },
+    "status": {
+      "active": "نشط",
+      "expired": "منتهي",
+      "trial": "تجربة",
+      "cancelled": "ملغي",
+      "expiresOn": "ينتهي في",
+      "renewsOn": "يتجدد في"
+    }
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "profile": {
+      "title": "الملف الشخصي",
+      "username": "اسم المستخدم",
+      "email": "البريد الإلكتروني",
+      "avatar": "الصورة الرمزية",
+      "updateProfile": "تحديث الملف الشخصي"
+    },
+    "appearance": {
+      "title": "المظهر",
+      "theme": "المظهر",
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام",
+      "language": "اللغة",
+      "direction": "اتجاه النص"
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "email": "إشعارات البريد",
+      "emailDescription": "استقبال إشعارات البريد الإلكتروني",
+      "discord": "إشعارات الديسكورد",
+      "discordDescription": "استقبال إشعارات الرسائل الخاصة",
+      "marketing": "رسائل تسويقية",
+      "marketingDescription": "استقبال رسائل ترويجية"
+    },
+    "security": {
+      "title": "الأمان",
+      "changePassword": "تغيير كلمة المرور",
+      "twoFactor": "المصادقة الثنائية",
+      "twoFactorDescription": "إضافة طبقة أمان إضافية",
+      "sessions": "الجلسات النشطة",
+      "revokeAll": "إلغاء جميع الجلسات"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "تسجيل الدخول إلى Kingdom-77",
+      "subtitle": "أدر سيرفرات الديسكورد الخاصة بك",
+      "withDiscord": "تسجيل الدخول بالديسكورد",
+      "noAccount": "ليس لديك حساب؟",
+      "signup": "إنشاء حساب"
+    },
+    "signup": {
+      "title": "إنشاء حساب",
+      "subtitle": "انضم إلى Kingdom-77 اليوم",
+      "withDiscord": "التسجيل بالديسكورد",
+      "hasAccount": "لديك حساب بالفعل؟",
+      "login": "تسجيل دخول"
+    },
+    "error": {
+      "invalidCredentials": "بيانات اعتماد غير صالحة",
+      "sessionExpired": "انتهت الجلسة، الرجاء تسجيل الدخول مرة أخرى",
+      "unauthorized": "وصول غير مصرح به",
+      "serverError": "خطأ في الخادم، الرجاء المحاولة مرة أخرى"
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "الصفحة غير موجودة",
+      "description": "الصفحة التي تبحث عنها غير موجودة",
+      "backHome": "العودة للرئيسية"
+    },
+    "serverError": {
+      "title": "خطأ في الخادم",
+      "description": "حدث خطأ ما من جانبنا",
+      "retry": "إعادة المحاولة",
+      "backHome": "العودة للرئيسية"
+    },
+    "unauthorized": {
+      "title": "غير مصرح",
+      "description": "ليس لديك صلاحية للوصول إلى هذه الصفحة",
+      "backHome": "العودة للرئيسية"
+    }
+  },
+  "footer": {
+    "copyright": "© 2025 Kingdom-77. جميع الحقوق محفوظة.",
+    "links": {
+      "privacy": "سياسة الخصوصية",
+      "terms": "شروط الخدمة",
+      "contact": "اتصل بنا",
+      "documentation": "التوثيق"
+    }
+  }
+}

@@ -1,6 +1,8 @@
-# Kingdom-77 Discord Bot v2.8
+# 👑 Kingdom-77 Discord Bot v3.9
 
-مستودع بسيط لبوت ديسكورد مخصّص للترجمة مع نظام تقييم وإدارة صلاحيات.
+بوت Discord متكامل مع 5 أنظمة رئيسية، Web Dashboard، ونظام Premium بـ Stripe Integration.
+
+**Enterprise-level features | 48 أمر | MongoDB + Redis | Premium System**
 
 ## 📁 هيكل المشروع / Project Structure
 
@@ -33,20 +35,53 @@ Kingdom-77/
     └── replit.md                 # معلومات Replit
 ```
 
-## ✨ الميزات / Features
+## ✨ الميزات الرئيسية / Main Features
 
-- 🌍 **ترجمة تلقائية** - ترجمة الرسائل حسب لغة القناة المحددة
-- 🔄 **ترجمة ثنائية الاتجاه** - دعم لغتين لقناة واحدة مع ترجمة متبادلة
-- 🖱️ **ترجمة بالنقر اليمين** - ترجم أي رسالة إلى لغتك بنقرة واحدة
-- 🎭 **ترجمة حسب الرتب** - تعيين لغة افتراضية لكل رتبة
-- ⭐ **نظام التقييم** - تقييم البوت من 1-5 نجوم مع إحصائيات
-- 📊 **إحصائيات شاملة** - تتبع السيرفرات والتقييمات والقنوات
-- 🔐 **نظام الصلاحيات** - إدارة الصلاحيات عبر الرتب
-- 🎛️ **لوحة تحكم المالك** - إدارة كاملة للبوت والسيرفرات المهمة
-- ⚡ **مزامنة سريعة** - نظام السيرفرات المهمة للتحديث الفوري
-- 🌐 **دعم متعدد اللغات** - ترجمة تلقائية لرسائل الخطأ إلى أي لغة
-- 🎨 **واجهة تفاعلية** - أزرار وقوائم منسدلة وفلاتر ذكية
-- ⚡ **أداء محسّن** - ترجمة سريعة مع نظام تخزين مؤقت (10,000 إدخال)
+### 🛡️ Moderation System
+- نظام تحذيرات متقدم (Warning/Mute/Kick/Ban)
+- سجلات مراقبة شاملة (Audit Logs)
+- 9 أوامر إدارية
+
+### 📊 Leveling System
+- نظام XP ومستويات (Nova-style)
+- � **Premium XP Boost** (2x multiplier)
+- بطاقات مستوى تفاعلية
+- لوحات متصدرين
+- 5 أوامر
+
+### 🎫 Tickets System
+- نظام تذاكر دعم كامل
+- � **Unlimited Tickets** (Premium)
+- فئات متعددة
+- واجهة تفاعلية (Modal, Buttons)
+- حفظ النصوص (Transcripts)
+- 12 أمر
+
+### 🎭 Auto-Roles System
+- Reaction Roles (3 modes)
+- Level Roles (تكامل مع Leveling)
+- Join Roles (تلقائية)
+- 14 أمر
+
+### 💎 Premium System
+- 3 خطط اشتراك (Basic, Premium, Enterprise)
+- نظام دفع Stripe متكامل
+- 10+ Premium Features
+- Trial System (7 days)
+- Gift System
+- 8 أوامر premium
+
+### 🌐 Web Dashboard
+- FastAPI Backend (22 API endpoints)
+- Next.js 14 Frontend
+- Discord OAuth2
+- JWT Authentication
+- Real-time statistics
+
+### ⚡ Redis Cache (Upstash)
+- تخزين مؤقت للإعدادات
+- تحسين الأداء
+- Distributed caching
 
 ## 🚀 التثبيت / Installation
 
@@ -107,44 +142,62 @@ DEV_GUILD_ID=YOUR_TEST_SERVER_ID
 python main.py
 ```
 
-## 📝 الأوامر المتاحة / Available Commands
+## 📝 الأوامر المتاحة / Available Commands (48 commands)
 
-### لوحة التحكم / Dashboard (Owner Only)
-- `/dashboard` - 🎛️ لوحة تحكم شاملة لمالك البوت
-  - تفعيل/تعطيل البوت
-  - مزامنة الأوامر
-  - إدارة السيرفرات المهمة (إضافة/حذف/عرض)
-  - مزامنة فورية للسيرفرات المهمة
+### 🛡️ Moderation System (9 commands)
+- `/warn` - تحذير عضو
+- `/warnings` - عرض تحذيرات عضو
+- `/removewarn` - حذف تحذير
+- `/clearwarnings` - حذف جميع التحذيرات
+- `/mute` - كتم عضو
+- `/unmute` - إلغاء كتم
+- `/kick` - طرد عضو
+- `/ban` - حظر عضو
+- `/modlogs` - عرض سجلات المراقبة
 
-### أوامر عامة / General Commands
-- `/ping` - فحص استجابة البوت مع 6 مستويات ديناميكية
-- `/botstats` - عرض إحصائيات البوت الشاملة
-- `/help` - عرض جميع الأوامر
-- `/view lists` - عرض جميع القوائم مع فلاتر
+### 📊 Leveling System (5 commands)
+- `/rank` - عرض بطاقة المستوى
+- `/leaderboard` - لوحة المتصدرين
+- `/xp add` - إضافة XP (Admin)
+- `/xp remove` - إزالة XP (Admin)
+- `/xp reset` - إعادة تعيين XP (Admin)
 
-### إدارة القنوات / Channel Management (Admin/Permitted)
-- `/channel setlang [channel]` - تعيين لغة أساسية وثانوية لقناة
-- `/channel removelang [channel]` - حذف إعدادات اللغة من قناة
-- `/channel quality [channel]` - تغيير جودة الترجمة
+### 🎫 Tickets System (12 commands)
+- `/ticket create` - إنشاء تذكرة
+- `/ticket close` - إغلاق تذكرة
+- `/ticket add` - إضافة عضو
+- `/ticket remove` - إزالة عضو
+- `/ticket claim` - المطالبة بتذكرة
+- `/ticket transcript` - حفظ نص المحادثة
+- `/ticketsetup` - إعداد النظام (Admin)
+- `/ticketcategory` - إدارة الفئات (Admin)
+- + 4 أوامر إدارية أخرى
 
-### ميزة الترجمة التفاعلية / Interactive Translation
-- **نقر يمين على رسالة → Translate Message** - ترجم أي رسالة إلى لغتك
-- يتطلب أن يكون لديك رتبة بلغة محددة
-- رسائل خطأ متعددة اللغات (8+ لغات)
+### 🎭 Auto-Roles System (14 commands)
+- `/reactionrole create` - إنشاء reaction role
+- `/reactionrole add` - إضافة رد فعل ورتبة
+- `/reactionrole remove` - إزالة رد فعل
+- `/reactionrole list` - عرض reaction roles
+- `/reactionrole delete` - حذف reaction role
+- `/reactionrole refresh` - تحديث الرسالة
+- `/levelrole add` - إضافة رتبة للمستوى
+- `/levelrole remove` - إزالة رتبة من المستوى
+- `/levelrole list` - عرض رتب المستويات
+- `/joinrole add` - إضافة رتبة للانضمام
+- `/joinrole remove` - إزالة رتبة
+- `/joinrole list` - عرض رتب الانضمام
+- `/joinrole config` - الإعدادات
+- `/autoroles config` - عرض الإحصائيات
 
-### نظام التقييم / Rating System
-- `/rate` - تقييم البوت (1-5 نجوم)
-- `/ratings` - عرض إحصائيات التقييمات
-
-### إدارة الرتب والصلاحيات / Role Management (Admin Only)
-- `/role add <role>` - منح صلاحيات البوت لرتبة
-- `/role remove <role>` - سحب صلاحيات رتبة
-- `/role setlang <role> <language>` - تعيين لغة افتراضية لرتبة
-- `/role removelang <role>` - حذف لغة الرتبة
-
-### أدوات التطوير / Development Tools (Admin Only)
-- `/debug` - معلومات تصحيح الأخطاء
-- `/sync` - مزامنة الأوامر يدوياً
+### 💎 Premium System (8 commands)
+- `/premium info` - عرض الخطط والأسعار
+- `/premium subscribe` - الاشتراك في خطة
+- `/premium status` - حالة الاشتراك
+- `/premium features` - عرض جميع الميزات
+- `/premium trial` - تجربة مجانية 7 أيام
+- `/premium cancel` - إلغاء الاشتراك
+- `/premium gift` - إهداء اشتراك
+- `/premium billing` - سجل الفواتير
 
 ## 🌐 اللغات المدعومة / Supported Languages
 
@@ -187,32 +240,50 @@ python main.py
 
 ## 📚 الوثائق / Documentation
 
-لمزيد من التفاصيل، راجع مجلد `docs/`:
-- [نظام التقييم](docs/RATING_SYSTEM.md) - وثائق نظام التقييم التقنية
-- [دليل التقييم الشامل](docs/RATING_SYSTEM_GUIDE.md) - دليل المستخدم للتقييم (عربي/إنجليزي)
-- [نظام إدارة الصلاحيات](docs/ROLE_MANAGEMENT_SYSTEM.md) - وثائق نظام الصلاحيات
-- [دليل لغات الرتب](docs/ROLE_LANGUAGES_GUIDE.md) - دليل شامل لميزة الترجمة حسب الرتب (عربي)
+### دلائل الأنظمة / System Guides
+- [MODERATION_GUIDE.md](docs/MODERATION_GUIDE.md) - دليل نظام الإدارة
+- [LEVELING_GUIDE.md](docs/LEVELING_GUIDE.md) - دليل نظام المستويات
+- [TICKETS_GUIDE.md](docs/TICKETS_GUIDE.md) - دليل نظام التذاكر
+- [AUTOROLES_GUIDE.md](docs/AUTOROLES_GUIDE.md) - دليل نظام الرتب التلقائية
+- [PREMIUM_GUIDE.md](docs/PREMIUM_GUIDE.md) - دليل نظام Premium (المستخدمين والمطورين)
+
+### وثائق المراحل / Phase Documentation
+- [PHASE2_COMPLETE.md](docs/PHASE2_COMPLETE.md) - ملخص Phase 2 (5 أنظمة)
+- [PHASE3_COMPLETE.md](docs/PHASE3_COMPLETE.md) - ملخص Phase 3 (Web Dashboard)
+- [PHASE4_COMPLETE.md](docs/PHASE4_COMPLETE.md) - ملخص Phase 4 (Premium System)
+
+### التطوير / Development
+- [TODO.md](TODO.md) - قائمة المهام والتحديثات
 
 ## 🆕 آخر التحديثات / Latest Updates
 
-### الإصدار 2.6 (أكتوبر 2025)
-- ✅ **لوحة تحكم المالك (/dashboard)**: نظام إدارة شامل للبوت
-- ✅ **إدارة السيرفرات المهمة**: إضافة/حذف سيرفرات للمزامنة الفورية
-- ✅ **تفعيل/تعطيل البوت**: التحكم الكامل في حالة البوت من لوحة التحكم
-- ✅ **دعم Render**: إعداد كامل للنشر على Render مع Secret Files
-- ✅ **نظام Cache محسّن**: زيادة السعة إلى 10,000 إدخال مع حذف ذكي
-- ✅ **إصلاح منطق الترجمة**: دعم أفضل للقنوات أحادية اللغة
-- ✅ **تنظيف الكود**: إزالة الملفات والمجلدات غير المستخدمة
-- ✅ **بنية محسّنة**: هيكل مشروع أنظف وأبسط
+### الإصدار 3.6 (2024) - Premium System ✨
+- ✅ **Premium System مع Stripe**: 3 خطط اشتراك (Basic, Premium, Enterprise)
+- ✅ **8 أوامر premium**: subscribe, trial, gift, billing, features, etc.
+- ✅ **10+ Premium Features**: XP Boost, Unlimited Tickets, Custom Cards, etc.
+- ✅ **Trial System**: 7-day free trial
+- ✅ **Gift System**: إهداء الاشتراكات
+- ✅ **Usage Tracking**: تتبع استخدام الميزات
+- ✅ **XP Boost Integration**: 2x XP للسيرفرات البريميوم
+- ✅ **Unlimited Tickets**: لا حدود للتذاكر (Premium)
+- ✅ **Auto-cleanup**: تنظيف الاشتراكات المنتهية تلقائياً
+- ✅ **Documentation**: دلائل شاملة للمستخدمين والمطورين
 
-### الإصدار 2.0
-- ✅ **دعم اللغة المزدوجة**: قم بتعيين لغتين لقناة واحدة
-- ✅ **أمر /botstats**: إحصائيات شاملة للبوت
-- ✅ **تتبع السيرفرات**: نظام تلقائي لتسجيل السيرفرات
-- ✅ **رسائل خطأ متعددة اللغات**: دعم 8+ لغات
-- ✅ **مؤشرات بينج ديناميكية**: 6 مستويات مع رموز
-- ✅ **أمر /view lists موحد**: تبويبات منظمة
-- ✅ **تنظيم الأوامر**: مجموعات منظمة (channel, role, view)
+### الإصدار 3.5 - Web Dashboard
+- ✅ **FastAPI Backend**: 22 API endpoints
+- ✅ **Next.js 14 Frontend**: 5 pages
+- ✅ **Discord OAuth2**: تسجيل دخول بحساب Discord
+- ✅ **JWT Authentication**: نظام مصادقة آمن
+- ✅ **Real-time Statistics**: إحصائيات مباشرة
+- ✅ **Responsive Design**: واجهة متجاوبة
+
+### الإصدار 3.0 - Core Systems
+- ✅ **5 أنظمة رئيسية**: Moderation, Leveling, Tickets, Auto-Roles, Redis Cache
+- ✅ **40 أمر**: أوامر شاملة لجميع الأنظمة
+- ✅ **MongoDB Integration**: قاعدة بيانات متقدمة
+- ✅ **Redis Cache (Upstash)**: تخزين مؤقت للأداء
+- ✅ **UI Components**: Modals, Buttons, Selects
+- ✅ **Documentation**: 4 دلائل شاملة
 
 ## 🔒 ملاحظات أمان / Security Notes
 
@@ -221,14 +292,24 @@ python main.py
 - 📁 ملفات البيانات محمية في `.gitignore`
 - 🔐 نظام صلاحيات متقدم يحمي الأوامر الإدارية
 
+## 💎 خطط Premium / Premium Plans
+
+| Tier | Monthly | Yearly | Features |
+|------|---------|--------|----------|
+| **🆓 Basic (Free)** | Free | Free | Unlimited Level Roles, Unlimited Tickets, Advanced Dashboard, Priority Support |
+| **💎 Premium** | $9.99 | $99.99 | **All Basic +** XP Boost (2x), Custom Cards, Advanced Automod, API Access, Unlimited Commands & Roles |
+
+**🎁 Trial:** 7-day free trial available for Premium
+**✨ XP Boost & Custom Level Cards:** Exclusive to Premium tier
+
 ## ⚡ الأداء / Performance
 
-- 🚀 **ترجمة سريعة**: استخدام مكتبة `deep-translator` المحسّنة
-- 💾 **تخزين مؤقت ضخم**: 10,000 ترجمة محفوظة للوصول الفوري
-- 📊 **كشف اللغة الذكي**: نظام يدعم 30+ لغة
+- � **MongoDB + Redis**: قاعدة بيانات عالية الأداء مع تخزين مؤقت
+- 💾 **Redis Caching**: تخزين مؤقت للإعدادات والبيانات المتكررة
+- 📊 **Optimized Queries**: استعلامات محسّنة للأداء
 - 🎯 **استجابة فورية**: معظم الأوامر تنفذ في أقل من ثانية
-- ⚡ **مزامنة سريعة**: السيرفرات المهمة تحصل على تحديث فوري
-- 🔄 **حذف ذكي**: نظام Cache يحذف فقط الزيادة عن السعة
+- ⚡ **Async Operations**: معالجة غير متزامنة لجميع العمليات
+- 🔄 **Auto-cleanup Tasks**: تنظيف تلقائي للبيانات القديمة
 
 ## 🤝 المساهمة / Contributing
 
@@ -250,5 +331,44 @@ python main.py
 - راجع الوثائق في مجلد `docs/`
 
 ---
+
+## 📊 إحصائيات المشروع / Project Statistics
+
+- **Lines of Code**: ~13,000+ lines
+- **Systems**: 5 major systems (Moderation, Leveling, Tickets, Auto-Roles, Premium)
+- **Commands**: 48 slash commands
+- **API Endpoints**: 22 RESTful endpoints
+- **UI Components**: 30+ interactive components
+- **Documentation**: 6 comprehensive guides
+- **Premium Features**: 10+ premium-only features
+- **Collections**: 15+ MongoDB collections
+- **Technologies**: Python, Discord.py, MongoDB, Redis, FastAPI, Next.js, Stripe
+
+## 🛠️ التقنيات المستخدمة / Technologies Used
+
+### Backend
+- **Python 3.13**: Programming language
+- **discord.py 2.6.4**: Discord API library
+- **MongoDB (motor)**: Database
+- **Redis (Upstash)**: Cache
+- **Stripe 7.3.0**: Payment processing
+- **FastAPI**: RESTful API
+
+### Frontend (Dashboard)
+- **Next.js 14**: React framework
+- **TypeScript**: Type safety
+- **TailwindCSS 4**: Styling
+- **Discord OAuth2**: Authentication
+
+### Infrastructure
+- **MongoDB Atlas**: Cloud database
+- **Upstash Redis**: Cloud Redis
+- **Stripe**: Payment gateway
+
+---
+
+## 👑 Kingdom-77 Bot v3.9
+
+**Enterprise-level Discord bot with premium features**
 
 تم التطوير بواسطة [myapps-web](https://github.com/myapps-web)
