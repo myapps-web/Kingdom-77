@@ -1,0 +1,254 @@
+{
+  "general": {
+    "yes": "Yes",
+    "no": "No",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "success": "Success",
+    "error": "Error",
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "update": "Update",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "open": "Open"
+  },
+  
+  "commands": {
+    "ping": {
+      "name": "ping",
+      "description": "Check bot latency",
+      "response": "🏓 Pong! Latency: {latency}ms"
+    },
+    
+    "language": {
+      "name": "language",
+      "description": "Change your language preference",
+      "set": {
+        "name": "set",
+        "description": "Set your preferred language",
+        "option_language": "The language you want to use",
+        "success": "✅ Language changed to **{language}**!",
+        "error": "❌ Failed to change language. Please try again."
+      },
+      "list": {
+        "name": "list",
+        "description": "View all supported languages",
+        "title": "🌍 Supported Languages",
+        "current": "Your current language: **{language}**"
+      },
+      "server": {
+        "name": "server",
+        "description": "Set server default language (Admin only)",
+        "option_language": "The default language for this server",
+        "success": "✅ Server language changed to **{language}**!",
+        "error": "❌ Failed to change server language.",
+        "no_permission": "❌ You need Administrator permission to change server language."
+      }
+    },
+    
+    "moderation": {
+      "ban": {
+        "name": "ban",
+        "description": "Ban a member from the server",
+        "option_user": "The member to ban",
+        "option_reason": "Reason for the ban",
+        "option_delete_days": "Days of messages to delete",
+        "success": "✅ **{username}** has been banned.\n**Reason:** {reason}",
+        "error": "❌ Failed to ban {username}.",
+        "no_permission": "❌ You don't have permission to ban members.",
+        "cannot_ban_self": "❌ You cannot ban yourself!",
+        "cannot_ban_bot": "❌ I cannot ban myself!",
+        "higher_role": "❌ You cannot ban someone with a higher or equal role."
+      },
+      
+      "kick": {
+        "name": "kick",
+        "description": "Kick a member from the server",
+        "option_user": "The member to kick",
+        "option_reason": "Reason for the kick",
+        "success": "✅ **{username}** has been kicked.\n**Reason:** {reason}",
+        "error": "❌ Failed to kick {username}."
+      },
+      
+      "warn": {
+        "name": "warn",
+        "description": "Warn a member",
+        "option_user": "The member to warn",
+        "option_reason": "Reason for the warning",
+        "success": "✅ **{username}** has been warned.\n**Reason:** {reason}\n**Total Warnings:** {count}",
+        "error": "❌ Failed to warn {username}."
+      },
+      
+      "timeout": {
+        "name": "timeout",
+        "description": "Timeout a member",
+        "option_user": "The member to timeout",
+        "option_duration": "Duration in minutes",
+        "option_reason": "Reason for the timeout",
+        "success": "✅ **{username}** has been timed out for {duration} minutes.\n**Reason:** {reason}",
+        "error": "❌ Failed to timeout {username}."
+      },
+      
+      "clear": {
+        "name": "clear",
+        "description": "Clear messages in the channel",
+        "option_amount": "Number of messages to delete",
+        "success": "✅ Deleted **{count}** messages.",
+        "error": "❌ Failed to clear messages."
+      }
+    },
+    
+    "leveling": {
+      "rank": {
+        "name": "rank",
+        "description": "View your or someone's rank",
+        "option_user": "The user to check",
+        "title": "📊 Rank Information",
+        "level": "Level",
+        "xp": "XP",
+        "rank": "Rank",
+        "messages": "Messages",
+        "progress": "Progress to next level"
+      },
+      
+      "leaderboard": {
+        "name": "leaderboard",
+        "description": "View server leaderboard",
+        "title": "🏆 Server Leaderboard",
+        "footer": "Your rank: #{rank}"
+      },
+      
+      "levelcard": {
+        "preview": {
+          "name": "preview",
+          "description": "Preview your level card"
+        },
+        "customize": {
+          "name": "customize",
+          "description": "Customize your level card colors (Premium)",
+          "premium_only": "❌ This feature is only available for Premium users!"
+        },
+        "template": {
+          "name": "template",
+          "description": "Change your level card template",
+          "success": "✅ Level card template changed to **{template}**!"
+        },
+        "reset": {
+          "name": "reset",
+          "description": "Reset level card to default",
+          "success": "✅ Level card reset to default!"
+        }
+      }
+    },
+    
+    "tickets": {
+      "create": {
+        "name": "create",
+        "description": "Create a support ticket",
+        "option_reason": "Reason for the ticket",
+        "success": "✅ Ticket created: {channel}",
+        "error": "❌ Failed to create ticket."
+      },
+      
+      "close": {
+        "name": "close",
+        "description": "Close this ticket",
+        "option_reason": "Reason for closing",
+        "success": "✅ Ticket closed.",
+        "error": "❌ This is not a ticket channel!"
+      },
+      
+      "add": {
+        "name": "add",
+        "description": "Add a user to this ticket",
+        "option_user": "User to add",
+        "success": "✅ {username} added to ticket.",
+        "error": "❌ Failed to add user."
+      },
+      
+      "remove": {
+        "name": "remove",
+        "description": "Remove a user from this ticket",
+        "option_user": "User to remove",
+        "success": "✅ {username} removed from ticket.",
+        "error": "❌ Failed to remove user."
+      }
+    },
+    
+    "premium": {
+      "info": {
+        "name": "info",
+        "description": "View premium information",
+        "title": "💎 Kingdom-77 Premium",
+        "subtitle": "Unlock advanced features for your server!",
+        "free_tier": "🆓 Free Tier",
+        "premium_tier": "💎 Premium Tier",
+        "price": "**Price:** $9.99/month or $99.99/year",
+        "trial": "**7-Day Free Trial Available!**",
+        "button": "Get Premium"
+      },
+      
+      "status": {
+        "name": "status",
+        "description": "Check premium status",
+        "active": "✅ Premium is **ACTIVE**",
+        "inactive": "❌ Premium is **NOT ACTIVE**",
+        "trial": "🎉 Free Trial Active",
+        "expires": "**Expires:** {date}",
+        "plan": "**Plan:** {plan}"
+      }
+    }
+  },
+  
+  "errors": {
+    "generic": "❌ An error occurred. Please try again.",
+    "no_permission": "❌ You don't have permission to use this command.",
+    "bot_no_permission": "❌ I don't have permission to do that.",
+    "user_not_found": "❌ User not found.",
+    "channel_not_found": "❌ Channel not found.",
+    "role_not_found": "❌ Role not found.",
+    "guild_not_found": "❌ Server not found.",
+    "missing_argument": "❌ Missing required argument: {argument}",
+    "invalid_argument": "❌ Invalid argument: {argument}",
+    "cooldown": "⏱️ Please wait {time} seconds before using this command again.",
+    "premium_only": "💎 This feature is only available for Premium users!",
+    "database_error": "❌ Database error. Please try again later.",
+    "api_error": "❌ API error. Please try again later."
+  },
+  
+  "embeds": {
+    "footer": "Kingdom-77 Bot • Powered by Kingdom-77",
+    "color_success": 3066993,
+    "color_error": 15158332,
+    "color_info": 3447003,
+    "color_warning": 16776960
+  },
+  
+  "premium": {
+    "features": {
+      "xp_boost": "⚡ 2x XP Boost",
+      "custom_cards": "🎨 Custom Level Cards",
+      "advanced_automod": "🛡️ Advanced AI Moderation",
+      "custom_actions": "⚙️ Custom Mod Actions",
+      "ticket_analytics": "📊 Ticket Analytics",
+      "custom_branding": "🎨 Custom Branding",
+      "unlimited_commands": "♾️ Unlimited Custom Commands",
+      "api_access": "🔌 API Access",
+      "dedicated_support": "💬 Dedicated Support"
+    },
+    
+    "trial": {
+      "started": "🎉 Your 7-day free trial has started!",
+      "ending_soon": "⏰ Your trial ends in {days} days.",
+      "ended": "Your trial has ended. Upgrade to Premium to keep your features!"
+    }
+  }
+}

@@ -490,10 +490,16 @@ class TicketSystem:
     async def can_user_create_ticket(
         self,
         guild_id: int,
-        user_id: int
+        user_id: int,
+        bot=None
     ) -> tuple[bool, str]:
         """
         التحقق إذا كان المستخدم يستطيع إنشاء تذكرة
+        
+        Args:
+            guild_id: Server ID
+            user_id: User ID
+            bot: Bot instance for premium check (optional)
         
         Returns:
             (يستطيع/لا يستطيع, رسالة)
@@ -505,10 +511,22 @@ class TicketSystem:
         
         # التحقق من عدد التذاكر المفتوحة
         open_count = await self.count_user_open_tickets(guild_id, user_id)
+        
+        # Check if guild has unlimited tickets (premium feature)
+        has_unlimited = False
+        if bot and hasattr(bot, 'premium_system') and bot.premium_system:
+            try:
+                has_unlimited = await bot.premium_system.has_feature(str(guild_id), "unlimited_tickets")
+            except Exception:
+                pass
+        
+        if has_unlimited:
+            return True, "يمكن إنشاء تذكرة (Unlimited Tickets - Premium)"
+        
         max_tickets = config.get("max_tickets_per_user", 3)
         
         if open_count >= max_tickets:
-            return False, f"لديك بالفعل {open_count} تذاكر مفتوحة. الحد الأقصى هو {max_tickets}"
+            return False, f"لديك بالفعل {open_count} تذاكر مفتوحة. الحد الأقصى هو {max_tickets} (قم بالترقية لـ Premium للحصول على عدد غير محدود)"
         
         return True, "يمكن إنشاء تذكرة"
     

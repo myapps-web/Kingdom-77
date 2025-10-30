@@ -55,7 +55,8 @@ class TicketCategoryModal(discord.ui.Modal, title="اختر فئة التذكر�
         # التحقق من قدرة المستخدم على إنشاء تذكرة
         can_create, message = await self.ticket_system.can_user_create_ticket(
             interaction.guild.id,
-            interaction.user.id
+            interaction.user.id,
+            bot=interaction.client
         )
         
         if not can_create:
@@ -454,7 +455,8 @@ class TicketsCog(commands.Cog):
         # التحقق من قدرة المستخدم
         can_create, message = await self.ticket_system.can_user_create_ticket(
             interaction.guild.id,
-            interaction.user.id
+            interaction.user.id,
+            bot=self.bot
         )
         
         if not can_create:
@@ -1291,7 +1293,8 @@ class TicketsCog(commands.Cog):
                 # نفس منطق /ticket create
                 can_create, message = await self.ticket_system.can_user_create_ticket(
                     interaction.guild.id,
-                    interaction.user.id
+                    interaction.user.id,
+                    bot=interaction.client
                 )
                 
                 if not can_create:

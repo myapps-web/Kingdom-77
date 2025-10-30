@@ -36,7 +36,7 @@ class LevelingCog(commands.Cog):
     def make_embed(self, title: str, description: str, color: discord.Color) -> discord.Embed:
         """Create a standard embed."""
         embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=f"Kingdom-77 Bot v3.0 • {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+        embed.set_footer(text=f"Kingdom-77 Bot v3.9 • {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
         return embed
     
     def create_progress_bar(self, percentage: float, length: int = 10) -> str:
@@ -328,7 +328,8 @@ class LevelingCog(commands.Cog):
                 str(interaction.guild.id),
                 str(user.id),
                 amount,
-                reason="admin_add"
+                reason="admin_add",
+                bot=self.bot
             )
             
             # Create response
@@ -494,6 +495,269 @@ class LevelingCog(commands.Cog):
                 color=discord.Color.red()
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    # ==================== Level Card Commands ====================
+    
+    @app_commands.command(name="levelcard", description="🎨 Customize your server's level up cards (Premium)")
+    @app_commands.describe(
+        action="Choose an action",
+        template="Select a template (for 'template' action)"
+    )
+    @app_commands.choices(action=[
+        app_commands.Choice(name="Preview - Preview your current card", value="preview"),
+        app_commands.Choice(name="Templates - View available templates", value="templates"),
+        app_commands.Choice(name="Customize - Open customization (Premium)", value="customize"),
+        app_commands.Choice(name="Reset - Reset to default", value="reset")
+    ])
+    @app_commands.choices(template=[
+        app_commands.Choice(name="Classic - Clean and simple", value="classic"),
+        app_commands.Choice(name="Dark - Modern dark theme", value="dark"),
+        app_commands.Choice(name="Light - Bright and clean", value="light"),
+        app_commands.Choice(name="Purple Dream - Purple gradient", value="purple"),
+        app_commands.Choice(name="Ocean Blue - Cool ocean theme", value="ocean"),
+        app_commands.Choice(name="Forest Green - Natural green", value="forest"),
+        app_commands.Choice(name="Sunset - Warm sunset colors", value="sunset"),
+        app_commands.Choice(name="Cyberpunk - Neon cyberpunk", value="cyber")
+    ])
+    async def levelcard(
+        self, 
+        interaction: discord.Interaction, 
+        action: str,
+        template: Optional[str] = None
+    ):
+        """Customize level cards (Premium feature)"""
+        if not self.leveling:
+            embed = self.make_embed(
+                title='❌ خطأ',
+                description='النظام غير متاح حالياً.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        # Check permissions
+        if not interaction.user.guild_permissions.administrator:
+            embed = self.make_embed(
+                title='❌ خطأ',
+                description='يجب أن تكون مسؤولاً لاستخدام هذا الأمر.',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        try:
+            if action == "preview":
+                await self._preview_card(interaction)
+            elif action == "templates":
+                await self._show_templates(interaction)
+            elif action == "customize":
+                await self._customize_card(interaction)
+            elif action == "reset":
+                await self._reset_card(interaction)
+            elif action == "template" and template:
+                await self._apply_template(interaction, template)
+        except Exception as e:
+            logger.error(f"Error in levelcard command: {e}")
+            embed = self.make_embed(
+                title='❌ خطأ',
+                description=f'حدث خطأ: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    async def _preview_card(self, interaction: discord.Interaction):
+        """Preview current card design"""
+        await interaction.response.defer()
+        
+        try:
+            from database.level_cards_schema import get_card_design
+            from leveling.card_generator import generate_level_card
+            
+            # Get current card design
+            design = await get_card_design(db.db, str(interaction.guild.id))
+            
+            # Get user's level data
+            user_data = await self.leveling.get_user_level(
+                str(interaction.guild.id),
+                str(interaction.user.id)
+            )
+            
+            current_xp = user_data.get('current_xp', 0)
+            level = user_data.get('level', 1)
+            required_xp = self.leveling.calculate_required_xp(level)
+            
+            # Get rank
+            leaderboard = await self.leveling.get_leaderboard(str(interaction.guild.id), limit=1000)
+            rank = next((i + 1 for i, u in enumerate(leaderboard) if u['user_id'] == str(interaction.user.id)), 0)
+            
+            # Generate card
+            avatar_url = interaction.user.display_avatar.url
+            card_buffer = await generate_level_card(
+                username=interaction.user.name,
+                discriminator=interaction.user.discriminator,
+                level=level,
+                current_xp=current_xp,
+                required_xp=required_xp,
+                rank=rank,
+                total_users=len(leaderboard),
+                avatar_url=avatar_url,
+                background_color=design.get('background_color', '#2C2F33'),
+                progress_bar_color=design.get('progress_bar_color', '#5865F2'),
+                progress_bar_bg_color=design.get('progress_bar_bg_color', '#99AAB5'),
+                text_color=design.get('text_color', '#FFFFFF'),
+                accent_color=design.get('accent_color', '#5865F2'),
+                avatar_border_color=design.get('avatar_border_color', '#5865F2'),
+                avatar_border_width=design.get('avatar_border_width', 5),
+                show_rank=design.get('show_rank', True),
+                show_progress_percentage=design.get('show_progress_percentage', True)
+            )
+            
+            file = discord.File(fp=card_buffer, filename="levelcard_preview.png")
+            
+            template_name = design.get('template', 'classic').title()
+            embed = self.make_embed(
+                title='🎨 Level Card Preview',
+                description=f'**Current Template:** {template_name}\n\nThis is how your level cards look!',
+                color=discord.Color.blue()
+            )
+            embed.set_image(url="attachment://levelcard_preview.png")
+            
+            await interaction.followup.send(embed=embed, file=file)
+            
+        except Exception as e:
+            logger.error(f"Error previewing card: {e}")
+            embed = self.make_embed(
+                title='❌ خطأ',
+                description=f'فشل في إنشاء المعاينة: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    async def _show_templates(self, interaction: discord.Interaction):
+        """Show available templates"""
+        from database.level_cards_schema import DEFAULT_TEMPLATES
+        
+        embed = self.make_embed(
+            title='🎨 Available Card Templates',
+            description='Choose from these beautiful templates!\n\n**How to apply:**\nUse `/levelcard` and select a template',
+            color=discord.Color.blue()
+        )
+        
+        for template_id, template_data in DEFAULT_TEMPLATES.items():
+            embed.add_field(
+                name=f"{template_data['name']}",
+                value=f"{template_data['description']}\nColors: `{template_data['background_color']}` `{template_data['progress_bar_color']}`",
+                inline=False
+            )
+        
+        await interaction.response.send_message(embed=embed)
+    
+    async def _customize_card(self, interaction: discord.Interaction):
+        """Open card customization (Premium feature)"""
+        # Check if guild has premium
+        if hasattr(self.bot, 'premium_system'):
+            has_premium = await self.bot.premium_system.has_feature(
+                str(interaction.guild.id),
+                "custom_level_cards"
+            )
+            
+            if not has_premium:
+                embed = self.make_embed(
+                    title='💎 Premium Feature',
+                    description='Custom level card design is a **Premium** feature!\n\n'
+                                'Upgrade to Premium to unlock:\n'
+                                '✨ Full card customization\n'
+                                '🎨 Custom colors\n'
+                                '🖼️ Background images\n'
+                                '🔤 Custom fonts\n\n'
+                                'Use `/premium info` to learn more!',
+                    color=discord.Color.gold()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+        
+        # Show customization info
+        embed = self.make_embed(
+            title='🎨 Card Customization',
+            description='**For advanced customization, visit the Dashboard!**\n\n'
+                        f'🌐 Dashboard: {self.bot.config.get("dashboard_url", "https://dashboard.kingdom77.com")}\n\n'
+                        '**Available Options:**\n'
+                        '• Background color\n'
+                        '• Progress bar colors\n'
+                        '• Text colors\n'
+                        '• Avatar border\n'
+                        '• Background images\n'
+                        '• Show/hide elements\n\n'
+                        '**Quick Apply Template:**\n'
+                        'Use `/levelcard` and select a template!',
+            color=discord.Color.blue()
+        )
+        
+        await interaction.response.send_message(embed=embed)
+    
+    async def _reset_card(self, interaction: discord.Interaction):
+        """Reset card to default"""
+        await interaction.response.defer()
+        
+        try:
+            from database.level_cards_schema import LevelCardsSchema
+            
+            schema = LevelCardsSchema(db.db)
+            success = await schema.delete_card_design(str(interaction.guild.id))
+            
+            embed = self.make_embed(
+                title='✅ تمت إعادة التعيين',
+                description='تمت إعادة تعيين تصميم البطاقات إلى الإعداد الافتراضي (Classic).',
+                color=discord.Color.green()
+            )
+            
+            await interaction.followup.send(embed=embed)
+            
+        except Exception as e:
+            logger.error(f"Error resetting card: {e}")
+            embed = self.make_embed(
+                title='❌ خطأ',
+                description=f'فشل في إعادة التعيين: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    async def _apply_template(self, interaction: discord.Interaction, template_id: str):
+        """Apply a template"""
+        await interaction.response.defer()
+        
+        try:
+            from database.level_cards_schema import apply_template
+            
+            success = await apply_template(db.db, str(interaction.guild.id), template_id)
+            
+            if success:
+                from database.level_cards_schema import DEFAULT_TEMPLATES
+                template_name = DEFAULT_TEMPLATES[template_id]['name']
+                
+                embed = self.make_embed(
+                    title='✅ تم تطبيق Template',
+                    description=f'تم تطبيق template **{template_name}** بنجاح!\n\n'
+                                f'استخدم `/levelcard preview` لمعاينة التصميم الجديد.',
+                    color=discord.Color.green()
+                )
+            else:
+                embed = self.make_embed(
+                    title='❌ خطأ',
+                    description='فشل في تطبيق template.',
+                    color=discord.Color.red()
+                )
+            
+            await interaction.followup.send(embed=embed)
+            
+        except Exception as e:
+            logger.error(f"Error applying template: {e}")
+            embed = self.make_embed(
+                title='❌ خطأ',
+                description=f'فشل في تطبيق template: {str(e)}',
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot):

@@ -1,0 +1,352 @@
+{
+  "common": {
+    "brand": "Kingdom-77",
+    "welcome": "Bienvenido",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "logout": "Cerrar Sesión",
+    "login": "Iniciar Sesión",
+    "signup": "Registrarse",
+    "language": "Idioma",
+    "theme": "Tema",
+    "settings": "Configuración"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "servers": "Servidores",
+    "moderation": "Moderación",
+    "leveling": "Niveles",
+    "tickets": "Tickets",
+    "autoroles": "Roles Automáticos",
+    "premium": "Premium",
+    "settings": "Configuración",
+    "documentation": "Documentación",
+    "support": "Soporte"
+  },
+  "home": {
+    "title": "Panel de Kingdom-77",
+    "subtitle": "Gestiona tus servidores de Discord con facilidad",
+    "features": {
+      "title": "Características",
+      "moderation": {
+        "title": "Moderación Avanzada",
+        "description": "Mantén tu servidor seguro con potentes herramientas de moderación"
+      },
+      "leveling": {
+        "title": "XP y Niveles",
+        "description": "Recompensa a los miembros activos con un sistema de niveles personalizable"
+      },
+      "tickets": {
+        "title": "Sistema de Tickets",
+        "description": "Tickets de soporte profesionales con categorías y transcripciones"
+      },
+      "premium": {
+        "title": "Funciones Premium",
+        "description": "Desbloquea funciones avanzadas con la suscripción Premium"
+      }
+    },
+    "getStarted": "Comenzar",
+    "viewServers": "Ver Servidores",
+    "documentation": "Documentación"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "selectServer": "Selecciona un servidor para gestionar",
+    "noServers": "No se encontraron servidores",
+    "overview": "Resumen",
+    "statistics": {
+      "title": "Estadísticas",
+      "members": "Miembros",
+      "online": "En línea",
+      "channels": "Canales",
+      "roles": "Roles",
+      "commands": "Comandos Usados",
+      "messages": "Mensajes Hoy"
+    },
+    "recentActivity": {
+      "title": "Actividad Reciente",
+      "noActivity": "Sin actividad reciente"
+    },
+    "quickActions": {
+      "title": "Acciones Rápidas",
+      "setupModeration": "Configurar Moderación",
+      "configureLeveling": "Configurar Niveles",
+      "createTicket": "Crear Categoría de Ticket",
+      "managePremium": "Gestionar Premium"
+    }
+  },
+  "servers": {
+    "title": "Tus Servidores",
+    "manage": "Gestionar",
+    "setup": "Configurar",
+    "noPermission": "No tienes permiso para gestionar este servidor",
+    "setupRequired": "Configuración Requerida",
+    "setupDescription": "Configura el bot para este servidor",
+    "totalMembers": "Total de Miembros",
+    "managedBy": "Gestionado por",
+    "viewDetails": "Ver Detalles"
+  },
+  "moderation": {
+    "title": "Moderación",
+    "logs": {
+      "title": "Registros de Moderación",
+      "action": "Acción",
+      "moderator": "Moderador",
+      "target": "Objetivo",
+      "reason": "Razón",
+      "timestamp": "Marca de Tiempo",
+      "type": {
+        "ban": "Banear",
+        "unban": "Desbanear",
+        "kick": "Expulsar",
+        "timeout": "Silenciar",
+        "warn": "Advertir",
+        "clear": "Limpiar Mensajes"
+      }
+    },
+    "settings": {
+      "title": "Configuración de Moderación",
+      "automod": "Auto Moderación",
+      "automodDescription": "Moderar automáticamente tu servidor",
+      "logChannel": "Canal de Registros",
+      "logChannelDescription": "Canal para enviar registros de moderación",
+      "muteRole": "Rol de Silencio",
+      "muteRoleDescription": "Rol a usar para silencios"
+    },
+    "actions": {
+      "title": "Acciones Rápidas",
+      "ban": "Banear Miembro",
+      "kick": "Expulsar Miembro",
+      "timeout": "Silenciar Miembro",
+      "warn": "Advertir Miembro",
+      "viewLogs": "Ver Registros"
+    }
+  },
+  "leveling": {
+    "title": "Sistema de Niveles",
+    "leaderboard": {
+      "title": "Tabla de Clasificación",
+      "rank": "Rango",
+      "member": "Miembro",
+      "level": "Nivel",
+      "xp": "XP",
+      "messages": "Mensajes"
+    },
+    "settings": {
+      "title": "Configuración de Niveles",
+      "enabled": "Habilitar Niveles",
+      "enabledDescription": "Habilitar sistema de XP y niveles",
+      "xpPerMessage": "XP por Mensaje",
+      "xpPerMessageDescription": "Cantidad de XP otorgada por mensaje",
+      "levelUpMessage": "Mensaje de Subida de Nivel",
+      "levelUpMessageDescription": "Mensaje enviado cuando el usuario sube de nivel",
+      "levelUpChannel": "Canal de Subida de Nivel",
+      "levelUpChannelDescription": "Canal para enviar mensajes de subida de nivel",
+      "stackRoles": "Acumular Roles de Nivel",
+      "stackRolesDescription": "Mantener roles de nivel anteriores al subir de nivel"
+    },
+    "rewards": {
+      "title": "Recompensas de Nivel",
+      "addReward": "Añadir Recompensa",
+      "level": "Nivel",
+      "role": "Rol",
+      "noRewards": "No hay recompensas de nivel configuradas"
+    }
+  },
+  "tickets": {
+    "title": "Sistema de Tickets",
+    "categories": {
+      "title": "Categorías de Tickets",
+      "addCategory": "Añadir Categoría",
+      "name": "Nombre de Categoría",
+      "description": "Descripción",
+      "emoji": "Emoji",
+      "supportRole": "Rol de Soporte",
+      "noCategories": "No hay categorías de tickets configuradas"
+    },
+    "settings": {
+      "title": "Configuración de Tickets",
+      "enabled": "Habilitar Tickets",
+      "enabledDescription": "Habilitar sistema de tickets",
+      "ticketChannel": "Canal del Panel de Tickets",
+      "ticketChannelDescription": "Canal para enviar panel de tickets",
+      "categoryChannel": "Categoría de Tickets",
+      "categoryChannelDescription": "Categoría para canales de tickets",
+      "transcripts": "Guardar Transcripciones",
+      "transcriptsDescription": "Guardar transcripciones de tickets al cerrar",
+      "transcriptChannel": "Canal de Transcripciones",
+      "transcriptChannelDescription": "Canal para enviar transcripciones"
+    },
+    "active": {
+      "title": "Tickets Activos",
+      "ticket": "Ticket",
+      "user": "Usuario",
+      "category": "Categoría",
+      "opened": "Abierto",
+      "status": "Estado",
+      "noActive": "Sin tickets activos"
+    }
+  },
+  "autoroles": {
+    "title": "Roles Automáticos",
+    "description": "Asignar automáticamente roles a nuevos miembros",
+    "rules": {
+      "title": "Reglas de Roles Automáticos",
+      "addRule": "Añadir Regla",
+      "type": "Tipo",
+      "role": "Rol",
+      "condition": "Condición",
+      "noRules": "No hay reglas de roles automáticos configuradas"
+    },
+    "types": {
+      "join": "Al Unirse",
+      "verified": "Al Verificar",
+      "boost": "Al Impulsar Servidor",
+      "level": "Al Subir de Nivel"
+    }
+  },
+  "premium": {
+    "title": "Premium",
+    "description": "Desbloquea funciones avanzadas con Premium",
+    "currentPlan": "Plan Actual",
+    "freePlan": "Plan Gratuito",
+    "premiumPlan": "Plan Premium",
+    "trial": {
+      "title": "Prueba Gratuita",
+      "description": "Prueba Premium gratis durante 7 días",
+      "startTrial": "Iniciar Prueba",
+      "trialActive": "Prueba Activa",
+      "daysLeft": "días restantes"
+    },
+    "features": {
+      "title": "Funciones Premium",
+      "xpBoost": "Impulso de XP 2x",
+      "xpBoostDescription": "Duplicar ganancia de XP para todos los miembros",
+      "customColors": "Colores de Embed Personalizados",
+      "customColorsDescription": "Personalizar colores de embed del bot",
+      "prioritySupport": "Soporte Prioritario",
+      "prioritySupportDescription": "Obtén ayuda más rápido con soporte prioritario",
+      "advancedStats": "Estadísticas Avanzadas",
+      "advancedStatsDescription": "Análisis detallados del servidor",
+      "customCommands": "Comandos Personalizados",
+      "customCommandsDescription": "Crea tus propios comandos",
+      "moreCategories": "Categorías de Tickets Ilimitadas",
+      "moreCategoriesDescription": "Crea tantas categorías de tickets como necesites"
+    },
+    "pricing": {
+      "title": "Precios",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "perMonth": "por mes",
+      "perYear": "por año",
+      "save": "Ahorra {percent}%",
+      "subscribe": "Suscribirse",
+      "manage": "Gestionar Suscripción"
+    },
+    "status": {
+      "active": "Activo",
+      "expired": "Expirado",
+      "trial": "Prueba",
+      "cancelled": "Cancelado",
+      "expiresOn": "Expira el",
+      "renewsOn": "Se renueva el"
+    }
+  },
+  "settings": {
+    "title": "Configuración",
+    "profile": {
+      "title": "Perfil",
+      "username": "Nombre de Usuario",
+      "email": "Correo Electrónico",
+      "avatar": "Avatar",
+      "updateProfile": "Actualizar Perfil"
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "theme": "Tema",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema",
+      "language": "Idioma",
+      "direction": "Dirección del Texto"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "email": "Notificaciones por Correo",
+      "emailDescription": "Recibir notificaciones por correo electrónico",
+      "discord": "Notificaciones de Discord",
+      "discordDescription": "Recibir notificaciones por DM de Discord",
+      "marketing": "Correos de Marketing",
+      "marketingDescription": "Recibir correos promocionales"
+    },
+    "security": {
+      "title": "Seguridad",
+      "changePassword": "Cambiar Contraseña",
+      "twoFactor": "Autenticación de Dos Factores",
+      "twoFactorDescription": "Añadir una capa extra de seguridad",
+      "sessions": "Sesiones Activas",
+      "revokeAll": "Revocar Todas las Sesiones"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Iniciar Sesión en Kingdom-77",
+      "subtitle": "Gestiona tus servidores de Discord",
+      "withDiscord": "Iniciar sesión con Discord",
+      "noAccount": "¿No tienes una cuenta?",
+      "signup": "Registrarse"
+    },
+    "signup": {
+      "title": "Crear Cuenta",
+      "subtitle": "Únete a Kingdom-77 hoy",
+      "withDiscord": "Registrarse con Discord",
+      "hasAccount": "¿Ya tienes una cuenta?",
+      "login": "Iniciar sesión"
+    },
+    "error": {
+      "invalidCredentials": "Credenciales inválidas",
+      "sessionExpired": "Sesión expirada, por favor inicia sesión de nuevo",
+      "unauthorized": "Acceso no autorizado",
+      "serverError": "Error del servidor, por favor intenta de nuevo"
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "Página No Encontrada",
+      "description": "La página que buscas no existe",
+      "backHome": "Volver al Inicio"
+    },
+    "serverError": {
+      "title": "Error del Servidor",
+      "description": "Algo salió mal de nuestro lado",
+      "retry": "Reintentar",
+      "backHome": "Volver al Inicio"
+    },
+    "unauthorized": {
+      "title": "No Autorizado",
+      "description": "No tienes permiso para acceder a esta página",
+      "backHome": "Volver al Inicio"
+    }
+  },
+  "footer": {
+    "copyright": "© 2025 Kingdom-77. Todos los derechos reservados.",
+    "links": {
+      "privacy": "Política de Privacidad",
+      "terms": "Términos de Servicio",
+      "contact": "Contacto",
+      "documentation": "Documentación"
+    }
+  }
+}

@@ -144,7 +144,8 @@ class LevelingSystem:
         guild_id: str,
         user_id: str,
         xp_amount: int,
-        reason: str = "message"
+        reason: str = "message",
+        bot=None
     ) -> Tuple[bool, Optional[int], Dict[str, Any]]:
         """Add XP to a user.
         
@@ -153,6 +154,7 @@ class LevelingSystem:
             user_id: User ID
             xp_amount: Amount of XP to add
             reason: Reason for XP gain
+            bot: Bot instance for premium check (optional)
             
         Returns:
             Tuple of (leveled_up, new_level, user_data)
@@ -163,10 +165,21 @@ class LevelingSystem:
             old_level = user_data.get("level", 0)
             old_xp = user_data.get("xp", 0)
             
+            # Apply Premium XP Boost if available
+            final_xp = xp_amount
+            if bot and hasattr(bot, 'premium_system') and bot.premium_system:
+                try:
+                    final_xp = await bot.premium_system.apply_xp_boost(guild_id, xp_amount)
+                    if final_xp > xp_amount:
+                        logger.debug(f"Premium XP boost applied: {xp_amount} -> {final_xp}")
+                except Exception as e:
+                    logger.warning(f"Could not apply XP boost: {e}")
+                    final_xp = xp_amount
+            
             # Add XP
-            user_data["xp"] = old_xp + xp_amount
+            user_data["xp"] = old_xp + final_xp
             user_data["messages"] = user_data.get("messages", 0) + 1
-            user_data["total_xp"] = user_data.get("total_xp", 0) + xp_amount
+            user_data["total_xp"] = user_data.get("total_xp", 0) + final_xp
             user_data["last_xp_time"] = datetime.utcnow().isoformat()
             user_data["updated_at"] = datetime.utcnow().isoformat()
             
@@ -184,7 +197,7 @@ class LevelingSystem:
             # Check if leveled up
             leveled_up = new_level > old_level
             
-            logger.debug(f"Added {xp_amount} XP to {user_id} in {guild_id}. Level: {old_level} -> {new_level}")
+            logger.debug(f"Added {final_xp} XP to {user_id} in {guild_id}. Level: {old_level} -> {new_level}")
             
             return leveled_up, new_level if leveled_up else None, user_data
             

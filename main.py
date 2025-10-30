@@ -1171,6 +1171,16 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# Add config attribute for premium system
+bot.config = {
+    'FRONTEND_URL': os.getenv('FRONTEND_URL', 'http://localhost:3000'),
+    'STRIPE_SECRET_KEY': os.getenv('STRIPE_SECRET_KEY'),
+    'STRIPE_WEBHOOK_SECRET': os.getenv('STRIPE_WEBHOOK_SECRET')
+}
+
+# Premium System (will be initialized in on_ready)
+bot.premium_system = None
+
 # Global state
 channel_langs = load_channels()
 bot_ratings = load_ratings()
@@ -1409,6 +1419,28 @@ async def on_ready():
             logger.info("✅ Auto-Roles cog loaded successfully")
         except Exception as e:
             logger.error(f"❌ Failed to load autoroles cog: {e}")
+        
+        try:
+            await bot.load_extension("cogs.cogs.translate")
+            logger.info("✅ Translation cog loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load translation cog: {e}")
+        
+        # Initialize Premium System
+        try:
+            from premium.premium_system import PremiumSystem
+            bot.premium_system = PremiumSystem(db.client)
+            await bot.premium_system.initialize()
+            logger.info("✅ Premium System initialized successfully")
+            
+            # Load Premium cog
+            try:
+                await bot.load_extension("cogs.cogs.premium")
+                logger.info("✅ Premium cog loaded successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to load premium cog: {e}")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Premium System: {e}")
     
     # Load data from MongoDB or JSON files
     global channel_langs, bot_ratings, allowed_roles, role_languages, role_permissions, servers_data
@@ -1742,11 +1774,12 @@ async def on_message(message: discord.Message):
                                         member
                                     )
                                     
-                                    # Add XP
+                                    # Add XP (with premium boost if available)
                                     leveled_up, new_level, user_data = await leveling.add_xp(
                                         str(message.guild.id),
                                         str(message.author.id),
-                                        xp_gain
+                                        xp_gain,
+                                        bot=bot
                                     )
                                     
                                     # Assign level roles if leveled up

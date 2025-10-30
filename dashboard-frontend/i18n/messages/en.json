@@ -1,0 +1,352 @@
+{
+  "common": {
+    "brand": "Kingdom-77",
+    "welcome": "Welcome",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "logout": "Logout",
+    "login": "Login",
+    "signup": "Sign Up",
+    "language": "Language",
+    "theme": "Theme",
+    "settings": "Settings"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "servers": "Servers",
+    "moderation": "Moderation",
+    "leveling": "Leveling",
+    "tickets": "Tickets",
+    "autoroles": "Auto Roles",
+    "premium": "Premium",
+    "settings": "Settings",
+    "documentation": "Documentation",
+    "support": "Support"
+  },
+  "home": {
+    "title": "Kingdom-77 Dashboard",
+    "subtitle": "Manage your Discord servers with ease",
+    "features": {
+      "title": "Features",
+      "moderation": {
+        "title": "Advanced Moderation",
+        "description": "Keep your server safe with powerful moderation tools"
+      },
+      "leveling": {
+        "title": "XP & Leveling",
+        "description": "Reward active members with customizable leveling system"
+      },
+      "tickets": {
+        "title": "Ticket System",
+        "description": "Professional support tickets with categories and transcripts"
+      },
+      "premium": {
+        "title": "Premium Features",
+        "description": "Unlock advanced features with Premium subscription"
+      }
+    },
+    "getStarted": "Get Started",
+    "viewServers": "View Servers",
+    "documentation": "Documentation"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "selectServer": "Select a server to manage",
+    "noServers": "No servers found",
+    "overview": "Overview",
+    "statistics": {
+      "title": "Statistics",
+      "members": "Members",
+      "online": "Online",
+      "channels": "Channels",
+      "roles": "Roles",
+      "commands": "Commands Used",
+      "messages": "Messages Today"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "noActivity": "No recent activity"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "setupModeration": "Setup Moderation",
+      "configureLeveling": "Configure Leveling",
+      "createTicket": "Create Ticket Category",
+      "managePremium": "Manage Premium"
+    }
+  },
+  "servers": {
+    "title": "Your Servers",
+    "manage": "Manage",
+    "setup": "Setup",
+    "noPermission": "You don't have permission to manage this server",
+    "setupRequired": "Setup Required",
+    "setupDescription": "Configure the bot for this server",
+    "totalMembers": "Total Members",
+    "managedBy": "Managed by",
+    "viewDetails": "View Details"
+  },
+  "moderation": {
+    "title": "Moderation",
+    "logs": {
+      "title": "Moderation Logs",
+      "action": "Action",
+      "moderator": "Moderator",
+      "target": "Target",
+      "reason": "Reason",
+      "timestamp": "Timestamp",
+      "type": {
+        "ban": "Ban",
+        "unban": "Unban",
+        "kick": "Kick",
+        "timeout": "Timeout",
+        "warn": "Warn",
+        "clear": "Clear Messages"
+      }
+    },
+    "settings": {
+      "title": "Moderation Settings",
+      "automod": "Auto Moderation",
+      "automodDescription": "Automatically moderate your server",
+      "logChannel": "Log Channel",
+      "logChannelDescription": "Channel to send moderation logs",
+      "muteRole": "Mute Role",
+      "muteRoleDescription": "Role to use for timeouts"
+    },
+    "actions": {
+      "title": "Quick Actions",
+      "ban": "Ban Member",
+      "kick": "Kick Member",
+      "timeout": "Timeout Member",
+      "warn": "Warn Member",
+      "viewLogs": "View Logs"
+    }
+  },
+  "leveling": {
+    "title": "Leveling System",
+    "leaderboard": {
+      "title": "Leaderboard",
+      "rank": "Rank",
+      "member": "Member",
+      "level": "Level",
+      "xp": "XP",
+      "messages": "Messages"
+    },
+    "settings": {
+      "title": "Leveling Settings",
+      "enabled": "Enable Leveling",
+      "enabledDescription": "Enable XP and leveling system",
+      "xpPerMessage": "XP per Message",
+      "xpPerMessageDescription": "Amount of XP awarded per message",
+      "levelUpMessage": "Level Up Message",
+      "levelUpMessageDescription": "Message sent when user levels up",
+      "levelUpChannel": "Level Up Channel",
+      "levelUpChannelDescription": "Channel to send level up messages",
+      "stackRoles": "Stack Level Roles",
+      "stackRolesDescription": "Keep previous level roles when leveling up"
+    },
+    "rewards": {
+      "title": "Level Rewards",
+      "addReward": "Add Reward",
+      "level": "Level",
+      "role": "Role",
+      "noRewards": "No level rewards configured"
+    }
+  },
+  "tickets": {
+    "title": "Ticket System",
+    "categories": {
+      "title": "Ticket Categories",
+      "addCategory": "Add Category",
+      "name": "Category Name",
+      "description": "Description",
+      "emoji": "Emoji",
+      "supportRole": "Support Role",
+      "noCategories": "No ticket categories configured"
+    },
+    "settings": {
+      "title": "Ticket Settings",
+      "enabled": "Enable Tickets",
+      "enabledDescription": "Enable ticket system",
+      "ticketChannel": "Ticket Panel Channel",
+      "ticketChannelDescription": "Channel to send ticket panel",
+      "categoryChannel": "Tickets Category",
+      "categoryChannelDescription": "Category for ticket channels",
+      "transcripts": "Save Transcripts",
+      "transcriptsDescription": "Save ticket transcripts when closed",
+      "transcriptChannel": "Transcript Channel",
+      "transcriptChannelDescription": "Channel to send transcripts"
+    },
+    "active": {
+      "title": "Active Tickets",
+      "ticket": "Ticket",
+      "user": "User",
+      "category": "Category",
+      "opened": "Opened",
+      "status": "Status",
+      "noActive": "No active tickets"
+    }
+  },
+  "autoroles": {
+    "title": "Auto Roles",
+    "description": "Automatically assign roles to new members",
+    "rules": {
+      "title": "Auto Role Rules",
+      "addRule": "Add Rule",
+      "type": "Type",
+      "role": "Role",
+      "condition": "Condition",
+      "noRules": "No auto role rules configured"
+    },
+    "types": {
+      "join": "On Join",
+      "verified": "On Verification",
+      "boost": "On Server Boost",
+      "level": "On Level Up"
+    }
+  },
+  "premium": {
+    "title": "Premium",
+    "description": "Unlock advanced features with Premium",
+    "currentPlan": "Current Plan",
+    "freePlan": "Free Plan",
+    "premiumPlan": "Premium Plan",
+    "trial": {
+      "title": "Free Trial",
+      "description": "Try Premium free for 7 days",
+      "startTrial": "Start Trial",
+      "trialActive": "Trial Active",
+      "daysLeft": "days left"
+    },
+    "features": {
+      "title": "Premium Features",
+      "xpBoost": "2x XP Boost",
+      "xpBoostDescription": "Double XP gain for all members",
+      "customColors": "Custom Embed Colors",
+      "customColorsDescription": "Customize bot embed colors",
+      "prioritySupport": "Priority Support",
+      "prioritySupportDescription": "Get help faster with priority support",
+      "advancedStats": "Advanced Statistics",
+      "advancedStatsDescription": "Detailed server analytics",
+      "customCommands": "Custom Commands",
+      "customCommandsDescription": "Create your own commands",
+      "moreCategories": "Unlimited Ticket Categories",
+      "moreCategoriesDescription": "Create as many ticket categories as you need"
+    },
+    "pricing": {
+      "title": "Pricing",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "perMonth": "per month",
+      "perYear": "per year",
+      "save": "Save {percent}%",
+      "subscribe": "Subscribe",
+      "manage": "Manage Subscription"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "trial": "Trial",
+      "cancelled": "Cancelled",
+      "expiresOn": "Expires on",
+      "renewsOn": "Renews on"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": {
+      "title": "Profile",
+      "username": "Username",
+      "email": "Email",
+      "avatar": "Avatar",
+      "updateProfile": "Update Profile"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "language": "Language",
+      "direction": "Text Direction"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "email": "Email Notifications",
+      "emailDescription": "Receive email notifications",
+      "discord": "Discord Notifications",
+      "discordDescription": "Receive Discord DM notifications",
+      "marketing": "Marketing Emails",
+      "marketingDescription": "Receive promotional emails"
+    },
+    "security": {
+      "title": "Security",
+      "changePassword": "Change Password",
+      "twoFactor": "Two-Factor Authentication",
+      "twoFactorDescription": "Add an extra layer of security",
+      "sessions": "Active Sessions",
+      "revokeAll": "Revoke All Sessions"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login to Kingdom-77",
+      "subtitle": "Manage your Discord servers",
+      "withDiscord": "Login with Discord",
+      "noAccount": "Don't have an account?",
+      "signup": "Sign up"
+    },
+    "signup": {
+      "title": "Create Account",
+      "subtitle": "Join Kingdom-77 today",
+      "withDiscord": "Sign up with Discord",
+      "hasAccount": "Already have an account?",
+      "login": "Login"
+    },
+    "error": {
+      "invalidCredentials": "Invalid credentials",
+      "sessionExpired": "Session expired, please login again",
+      "unauthorized": "Unauthorized access",
+      "serverError": "Server error, please try again"
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "Page Not Found",
+      "description": "The page you're looking for doesn't exist",
+      "backHome": "Back to Home"
+    },
+    "serverError": {
+      "title": "Server Error",
+      "description": "Something went wrong on our end",
+      "retry": "Retry",
+      "backHome": "Back to Home"
+    },
+    "unauthorized": {
+      "title": "Unauthorized",
+      "description": "You don't have permission to access this page",
+      "backHome": "Back to Home"
+    }
+  },
+  "footer": {
+    "copyright": "© 2025 Kingdom-77. All rights reserved.",
+    "links": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "contact": "Contact",
+      "documentation": "Documentation"
+    }
+  }
+}

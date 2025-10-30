@@ -1,0 +1,254 @@
+{
+  "general": {
+    "yes": "Oui",
+    "no": "Non",
+    "enabled": "Activé",
+    "disabled": "Désactivé",
+    "success": "Succès",
+    "error": "Erreur",
+    "loading": "Chargement...",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "update": "Mettre à jour",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "close": "Fermer",
+    "open": "Ouvrir"
+  },
+  
+  "commands": {
+    "ping": {
+      "name": "ping",
+      "description": "Vérifier la latence du bot",
+      "response": "🏓 Pong ! Latence : {latency}ms"
+    },
+    
+    "language": {
+      "name": "language",
+      "description": "Changer votre préférence de langue",
+      "set": {
+        "name": "set",
+        "description": "Définir votre langue préférée",
+        "option_language": "La langue que vous souhaitez utiliser",
+        "success": "✅ Langue changée en **{language}** !",
+        "error": "❌ Échec du changement de langue. Veuillez réessayer."
+      },
+      "list": {
+        "name": "list",
+        "description": "Voir toutes les langues disponibles",
+        "title": "🌍 Langues Disponibles",
+        "current": "Votre langue actuelle : **{language}**"
+      },
+      "server": {
+        "name": "server",
+        "description": "Définir la langue par défaut du serveur (Administrateurs uniquement)",
+        "option_language": "La langue par défaut pour ce serveur",
+        "success": "✅ Langue du serveur changée en **{language}** !",
+        "error": "❌ Échec du changement de langue du serveur.",
+        "no_permission": "❌ Vous avez besoin de la permission Administrateur pour changer la langue du serveur."
+      }
+    },
+    
+    "moderation": {
+      "ban": {
+        "name": "ban",
+        "description": "Bannir un membre du serveur",
+        "option_user": "Le membre à bannir",
+        "option_reason": "Raison du bannissement",
+        "option_delete_days": "Jours de messages à supprimer",
+        "success": "✅ **{username}** a été banni.\n**Raison :** {reason}",
+        "error": "❌ Échec du bannissement de {username}.",
+        "no_permission": "❌ Vous n'avez pas la permission de bannir des membres.",
+        "cannot_ban_self": "❌ Vous ne pouvez pas vous bannir vous-même !",
+        "cannot_ban_bot": "❌ Je ne peux pas me bannir moi-même !",
+        "higher_role": "❌ Vous ne pouvez pas bannir quelqu'un avec un rôle supérieur ou égal."
+      },
+      
+      "kick": {
+        "name": "kick",
+        "description": "Expulser un membre du serveur",
+        "option_user": "Le membre à expulser",
+        "option_reason": "Raison de l'expulsion",
+        "success": "✅ **{username}** a été expulsé.\n**Raison :** {reason}",
+        "error": "❌ Échec de l'expulsion de {username}."
+      },
+      
+      "warn": {
+        "name": "warn",
+        "description": "Avertir un membre",
+        "option_user": "Le membre à avertir",
+        "option_reason": "Raison de l'avertissement",
+        "success": "✅ **{username}** a été averti.\n**Raison :** {reason}\n**Total des avertissements :** {count}",
+        "error": "❌ Échec de l'avertissement de {username}."
+      },
+      
+      "timeout": {
+        "name": "timeout",
+        "description": "Mettre un membre en sourdine temporairement",
+        "option_user": "Le membre à mettre en sourdine",
+        "option_duration": "Durée en minutes",
+        "option_reason": "Raison de la mise en sourdine",
+        "success": "✅ **{username}** a été mis en sourdine pour {duration} minutes.\n**Raison :** {reason}",
+        "error": "❌ Échec de la mise en sourdine de {username}."
+      },
+      
+      "clear": {
+        "name": "clear",
+        "description": "Effacer les messages dans le canal",
+        "option_amount": "Nombre de messages à supprimer",
+        "success": "✅ **{count}** messages supprimés.",
+        "error": "❌ Échec de l'effacement des messages."
+      }
+    },
+    
+    "leveling": {
+      "rank": {
+        "name": "rank",
+        "description": "Voir votre rang ou celui de quelqu'un d'autre",
+        "option_user": "L'utilisateur à consulter",
+        "title": "📊 Informations de Rang",
+        "level": "Niveau",
+        "xp": "XP",
+        "rank": "Rang",
+        "messages": "Messages",
+        "progress": "Progression vers le niveau suivant"
+      },
+      
+      "leaderboard": {
+        "name": "leaderboard",
+        "description": "Voir le classement du serveur",
+        "title": "🏆 Classement du Serveur",
+        "footer": "Votre rang : #{rank}"
+      },
+      
+      "levelcard": {
+        "preview": {
+          "name": "preview",
+          "description": "Aperçu de votre carte de niveau"
+        },
+        "customize": {
+          "name": "customize",
+          "description": "Personnaliser les couleurs de votre carte de niveau (Premium)",
+          "premium_only": "❌ Cette fonctionnalité n'est disponible que pour les utilisateurs Premium !"
+        },
+        "template": {
+          "name": "template",
+          "description": "Changer le modèle de votre carte de niveau",
+          "success": "✅ Modèle de carte de niveau changé en **{template}** !"
+        },
+        "reset": {
+          "name": "reset",
+          "description": "Réinitialiser la carte de niveau par défaut",
+          "success": "✅ Carte de niveau réinitialisée !"
+        }
+      }
+    },
+    
+    "tickets": {
+      "create": {
+        "name": "create",
+        "description": "Créer un ticket de support",
+        "option_reason": "Raison du ticket",
+        "success": "✅ Ticket créé : {channel}",
+        "error": "❌ Échec de la création du ticket."
+      },
+      
+      "close": {
+        "name": "close",
+        "description": "Fermer ce ticket",
+        "option_reason": "Raison de la fermeture",
+        "success": "✅ Ticket fermé.",
+        "error": "❌ Ce n'est pas un canal de ticket !"
+      },
+      
+      "add": {
+        "name": "add",
+        "description": "Ajouter un utilisateur à ce ticket",
+        "option_user": "Utilisateur à ajouter",
+        "success": "✅ {username} ajouté au ticket.",
+        "error": "❌ Échec de l'ajout de l'utilisateur."
+      },
+      
+      "remove": {
+        "name": "remove",
+        "description": "Retirer un utilisateur de ce ticket",
+        "option_user": "Utilisateur à retirer",
+        "success": "✅ {username} retiré du ticket.",
+        "error": "❌ Échec du retrait de l'utilisateur."
+      }
+    },
+    
+    "premium": {
+      "info": {
+        "name": "info",
+        "description": "Voir les informations Premium",
+        "title": "💎 Kingdom-77 Premium",
+        "subtitle": "Débloquez des fonctionnalités avancées pour votre serveur !",
+        "free_tier": "🆓 Version Gratuite",
+        "premium_tier": "💎 Version Premium",
+        "price": "**Prix :** 9,99 $/mois ou 99,99 $/an",
+        "trial": "**Essai gratuit de 7 jours disponible !**",
+        "button": "Obtenir Premium"
+      },
+      
+      "status": {
+        "name": "status",
+        "description": "Vérifier le statut Premium",
+        "active": "✅ Premium est **ACTIF**",
+        "inactive": "❌ Premium n'est **PAS ACTIF**",
+        "trial": "🎉 Essai Gratuit Actif",
+        "expires": "**Expire :** {date}",
+        "plan": "**Plan :** {plan}"
+      }
+    }
+  },
+  
+  "errors": {
+    "generic": "❌ Une erreur s'est produite. Veuillez réessayer.",
+    "no_permission": "❌ Vous n'avez pas la permission d'utiliser cette commande.",
+    "bot_no_permission": "❌ Je n'ai pas la permission de faire cela.",
+    "user_not_found": "❌ Utilisateur non trouvé.",
+    "channel_not_found": "❌ Canal non trouvé.",
+    "role_not_found": "❌ Rôle non trouvé.",
+    "guild_not_found": "❌ Serveur non trouvé.",
+    "missing_argument": "❌ Argument requis manquant : {argument}",
+    "invalid_argument": "❌ Argument invalide : {argument}",
+    "cooldown": "⏱️ Veuillez attendre {time} secondes avant d'utiliser cette commande à nouveau.",
+    "premium_only": "💎 Cette fonctionnalité n'est disponible que pour les utilisateurs Premium !",
+    "database_error": "❌ Erreur de base de données. Veuillez réessayer plus tard.",
+    "api_error": "❌ Erreur API. Veuillez réessayer plus tard."
+  },
+  
+  "embeds": {
+    "footer": "Kingdom-77 Bot • Propulsé par Kingdom-77",
+    "color_success": 3066993,
+    "color_error": 15158332,
+    "color_info": 3447003,
+    "color_warning": 16776960
+  },
+  
+  "premium": {
+    "features": {
+      "xp_boost": "⚡ Boost d'XP 2x",
+      "custom_cards": "🎨 Cartes de Niveau Personnalisées",
+      "advanced_automod": "🛡️ Modération Automatique Avancée avec IA",
+      "custom_actions": "⚙️ Actions de Modération Personnalisées",
+      "ticket_analytics": "📊 Analyses de Tickets",
+      "custom_branding": "🎨 Marque Personnalisée",
+      "unlimited_commands": "♾️ Commandes Personnalisées Illimitées",
+      "api_access": "🔌 Accès API",
+      "dedicated_support": "💬 Support Dédié"
+    },
+    
+    "trial": {
+      "started": "🎉 Votre essai gratuit de 7 jours a commencé !",
+      "ending_soon": "⏰ Votre essai se termine dans {days} jours.",
+      "ended": "Votre essai est terminé. Passez à Premium pour conserver vos fonctionnalités !"
+    }
+  }
+}

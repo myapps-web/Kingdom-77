@@ -1,7 +1,7 @@
 [project]
 name = "kingdom-77-bot"
-version = "3.6.0"
-description = "Kingdom-77 Discord Bot v3.6 - Multi-language translation bot with moderation, leveling, tickets, and auto-roles systems"
+version = "3.9.0"
+description = "Kingdom-77 Discord Bot v3.9 - Enterprise-level Discord bot with premium features, credits economy, multi-language support, and payment integration"
 requires-python = ">=3.11"
 dependencies = [
     "discord-py>=2.6.4",

@@ -17,6 +17,17 @@ dnspython==2.4.2          # Required for MongoDB Atlas
 # Cache (Redis)
 redis==5.0.1              # Redis client with async support
 
+# Payment Processing (v3.8)
+stripe==7.3.0             # Stripe payment integration (international)
+requests>=2.31.0          # HTTP client for Moyasar API (Saudi Arabia/GCC)
+
+# Image Generation (v3.7)
+Pillow==10.1.0            # Image processing for level cards
+aiohttp==3.9.1            # Async HTTP client for avatar downloads
+
+# Email Notifications (v3.7)
+resend==0.8.0             # Email service for notifications
+
 # Web Server
 flask==3.0.0              # Keep-Alive server
 
