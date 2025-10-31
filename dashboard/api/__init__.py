@@ -2,7 +2,7 @@
 Dashboard API Routers
 """
 
-from . import auth, servers, stats, moderation, leveling, tickets, settings
+from . import auth, servers, stats, moderation, leveling, tickets, settings, automod
 
 __all__ = [
     "auth",
@@ -11,5 +11,6 @@ __all__ = [
     "moderation",
     "leveling",
     "tickets",
-    "settings"
+    "settings",
+    "automod"
 ]

@@ -45,7 +45,7 @@ app.add_middleware(
 )
 
 # Import routers
-from .api import auth, servers, stats, moderation, leveling, tickets, settings, premium, level_cards, emails, credits, shop
+from .api import auth, servers, stats, moderation, leveling, tickets, settings, premium, level_cards, emails, credits, shop, automod
 
 # Register routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -60,6 +60,7 @@ app.include_router(level_cards.router, prefix="/api/level-cards", tags=["Level C
 app.include_router(emails.router, prefix="/api/emails", tags=["Email Notifications"])
 app.include_router(credits.router, tags=["Credits"])
 app.include_router(shop.router, tags=["Shop"])
+app.include_router(automod.router, prefix="/api/automod", tags=["AutoMod"])
 
 @app.get("/")
 async def root():

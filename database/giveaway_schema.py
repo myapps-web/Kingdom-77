@@ -524,7 +524,7 @@ GIVEAWAY_SETTINGS_SCHEMA = {
 class GiveawayDatabase:
     """إدارة قاعدة بيانات القرعات"""
     
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db):
         self.db = db
         self.giveaways = db.giveaways
         self.settings = db.giveaway_settings

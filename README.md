@@ -1,8 +1,8 @@
-# 👑 Kingdom-77 Discord Bot v3.9
+# 👑 Kingdom-77 Discord Bot v3.13
 
-بوت Discord متكامل مع 5 أنظمة رئيسية، Web Dashboard، ونظام Premium بـ Stripe Integration.
+بوت Discord متكامل واحترافي مع 15 نظاماً، Web Dashboard، وميزات Premium.
 
-**Enterprise-level features | 48 أمر | MongoDB + Redis | Premium System**
+**Enterprise-level | 103+ أمر | 85+ API | MongoDB + Redis | 8 لغات | ~25,000+ سطر كود**
 
 ## 📁 هيكل المشروع / Project Structure
 
@@ -37,51 +37,86 @@ Kingdom-77/
 
 ## ✨ الميزات الرئيسية / Main Features
 
+### 🌍 Translation System
+- ترجمة تلقائية لـ 8 لغات
+- ترجمة ثنائية اللغة للقنوات
+- ترجمة بالريأكشن
+- 8 أوامر ترجمة
+
 ### 🛡️ Moderation System
-- نظام تحذيرات متقدم (Warning/Mute/Kick/Ban)
-- سجلات مراقبة شاملة (Audit Logs)
-- 9 أوامر إدارية
+- نظام تحذيرات متقدم (19 أمر)
+- AutoMod ذكي بدون AI
+- سجلات مراقبة شاملة
+- Kick/Ban/Timeout/Mute
 
 ### 📊 Leveling System
 - نظام XP ومستويات (Nova-style)
-- � **Premium XP Boost** (2x multiplier)
-- بطاقات مستوى تفاعلية
+- 💎 **Premium XP Boost** (2x)
+- بطاقات مستوى مخصصة
 - لوحات متصدرين
-- 5 أوامر
+- 3 أوامر + API
 
 ### 🎫 Tickets System
-- نظام تذاكر دعم كامل
-- � **Unlimited Tickets** (Premium)
-- فئات متعددة
-- واجهة تفاعلية (Modal, Buttons)
-- حفظ النصوص (Transcripts)
-- 12 أمر
+- تذاكر دعم احترافية
+- 💎 **Unlimited Tickets** (Premium)
+- فئات متعددة + UI تفاعلية
+- حفظ المحادثات (Transcripts)
+- 6 أوامر
 
 ### 🎭 Auto-Roles System
-- Reaction Roles (3 modes)
-- Level Roles (تكامل مع Leveling)
-- Join Roles (تلقائية)
-- 14 أمر
+- Reaction Roles (3 أوضاع)
+- Level Roles + Join Roles
+- تكامل مع المستويات
+- 5 أوامر
+
+### 💰 Economy System
+- نظام اقتصادي متكامل (19 أمر)
+- متجر + مخزون + بنك
+- ألعاب قمار (Slots/Coinflip/Dice)
+- وظائف وجرائم
+- مكافآت يومية وأسبوعية
+
+### 🎁 Giveaways System
+- جوائز احترافية مع قوالب
+- جدولة تلقائية
+- متطلبات مخصصة
+- 7 أوامر + لوحة تحكم
+
+### 🏠 Welcome System
+- بطاقات ترحيب مخصصة
+- 4 تصاميم + Captcha
+- رسائل ترحيب تلقائية
+- أدوار تلقائية
+
+### 📝 Logging System
+- 8 أنواع سجلات
+- تصدير السجلات
+- تجاهل قنوات/أعضاء
+- 8 أوامر
+
+### ✨ Custom Commands
+- أوامر مخصصة بلا حدود (Premium)
+- Auto-responses ذكية
+- Variables + Embeds
+- إحصائيات الاستخدام
 
 ### 💎 Premium System
-- 3 خطط اشتراك (Basic, Premium, Enterprise)
-- نظام دفع Stripe متكامل
-- 10+ Premium Features
-- Trial System (7 days)
-- Gift System
-- 8 أوامر premium
+- 3 خطط (Basic/Premium/Enterprise)
+- Stripe + Moyasar
+- 10+ ميزات حصرية
+- نظام تجربة وهدايا
 
 ### 🌐 Web Dashboard
-- FastAPI Backend (22 API endpoints)
+- FastAPI Backend (85+ API)
 - Next.js 14 Frontend
 - Discord OAuth2
-- JWT Authentication
-- Real-time statistics
+- إحصائيات فورية
 
-### ⚡ Redis Cache (Upstash)
-- تخزين مؤقت للإعدادات
-- تحسين الأداء
-- Distributed caching
+### ⚡ Performance
+- MongoDB + Redis caching
+- Async operations
+- ~25,000 سطر كود محسّن
+- مُحسّن للسيرفرات الكبيرة
 
 ## 🚀 التثبيت / Installation
 

@@ -233,7 +233,7 @@ SOCIAL_SETTINGS_SCHEMA = {
 class SocialIntegrationDatabase:
     """إدارة قاعدة بيانات Social Integration"""
     
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db):
         self.db = db
         self.links = db.social_links
         self.posts = db.social_posts

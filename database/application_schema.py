@@ -372,7 +372,7 @@ APPLICATION_SETTINGS_SCHEMA = {
 class ApplicationDatabase:
     """إدارة قاعدة بيانات التقديمات"""
     
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db):
         self.db = db
         self.forms = db.application_forms
         self.submissions = db.application_submissions

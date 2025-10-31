@@ -118,7 +118,7 @@ CARD_DESIGN_SCHEMA = {
 class LevelCardsSchema:
     """Level cards database operations"""
     
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db):
         self.db = db
         self.card_designs = db[CARD_DESIGNS]
         self.card_templates = db[CARD_TEMPLATES]

@@ -194,7 +194,7 @@ AUTO_MESSAGES_SETTINGS_SCHEMA = {
 class AutoMessagesDatabase:
     """إدارة قاعدة بيانات الرسائل التلقائية"""
     
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db):
         self.db = db
         self.messages = db.auto_messages
         self.settings = db.auto_messages_settings
