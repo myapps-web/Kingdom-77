@@ -7,4 +7,4 @@ Provides MongoDB integration and data management.
 from .mongodb import MongoDB, db, init_database, close_database
 
 __all__ = ['MongoDB', 'db', 'init_database', 'close_database']
-__version__ = '3.0.0'
+__version__ = '4.0.0'

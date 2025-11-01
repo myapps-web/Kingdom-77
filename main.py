@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 # Bot version
-VERSION = "3.6"
+VERSION = "4.0.0"
 
 # Load environment variables
 load_dotenv()

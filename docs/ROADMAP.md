@@ -1192,72 +1192,6 @@ pip install anthropic
 
 ---
 
-### 5.8 Music System 🔲
-**التقدير:** 6-7 أيام  
-**الأولوية:** 🟢 منخفضة
-
-**الوصف:**
-نظام موسيقى متقدم مع دعم YouTube و Spotify
-
-**المهام:**
-- [ ] Lavalink Server Setup
-- [ ] Music Player Core (`music_system.py`)
-- [ ] YouTube/Spotify/SoundCloud Support
-- [ ] Queue Management
-- [ ] Playlists System
-- [ ] Audio Filters (Bass/Speed/Pitch)
-- [ ] DJ Role System
-- [ ] Lyrics Display
-- [ ] Now Playing UI
-- [x] Slash Commands Cog (546 سطر) ✅
-- [x] Dashboard API (490 سطر) ✅ (18 commands)
-- [ ] Dashboard Player UI
-- [ ] API Endpoints (8 endpoints)
-
-**الميزات:**
-- ✨ **Multi-Source** - YouTube, Spotify, SoundCloud
-- ✨ **Queue System** - طابور تشغيل متقدم
-- ✨ **Playlists** - حفظ قوائم التشغيل
-- ✨ **Audio Filters** - Bass Boost, Nightcore, Vaporwave
-- ✨ **DJ Role** - صلاحيات خاصة للـ DJ
-- ✨ **Lyrics** - عرض كلمات الأغنية
-- ✨ **Now Playing** - عرض تفاعلي للأغنية الحالية
-- ✨ **Vote Skip** - تصويت لتخطي الأغنية
-- ✨ **24/7 Mode** - البقاء في القناة الصوتية
-- ✨ **Premium Features** - جودة أعلى وفلاتر إضافية
-
-**الأوامر:**
-1. `/play` - تشغيل أغنية
-2. `/pause` - إيقاف مؤقت
-3. `/resume` - استئناف التشغيل
-4. `/skip` - تخطي الأغنية
-5. `/stop` - إيقاف وإفراغ القائمة
-6. `/queue` - عرض قائمة الانتظار
-7. `/nowplaying` - الأغنية الحالية
-8. `/volume` - التحكم بالصوت
-9. `/loop` - تكرار الأغنية/القائمة
-10. `/shuffle` - خلط القائمة
-11. `/remove` - إزالة من القائمة
-12. `/playlist create` - إنشاء قائمة
-13. `/playlist load` - تحميل قائمة
-14. `/filter bass` - Bass Boost
-15. `/filter nightcore` - Nightcore
-16. `/lyrics` - كلمات الأغنية
-17. `/dj set` - تحديد رتبة DJ
-18. `/music config` - الإعدادات
-
-**المتطلبات:**
-```bash
-pip install wavelink  # Lavalink client
-# Lavalink Server (Java)
-```
-
-**المخرجات المتوقعة:**
-- Music System (1,200 سطر)
-- Slash Commands (950 سطر)
-- API Endpoints (450 سطر)
-- Dashboard UI (550 سطر)
-- **المجموع:** ~3,150 سطر كود
 
 ---
 

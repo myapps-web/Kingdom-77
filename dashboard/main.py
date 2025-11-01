@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Kingdom-77 Dashboard API",
     description="RESTful API for Kingdom-77 Discord Bot Dashboard",
-    version="3.9.0",
+    version="4.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
@@ -45,7 +45,11 @@ app.add_middleware(
 )
 
 # Import routers
-from .api import auth, servers, stats, moderation, leveling, tickets, settings, premium, level_cards, emails, credits, shop, automod
+from .api import (
+    auth, servers, stats, moderation, leveling, tickets, settings, 
+    premium, level_cards, emails, credits, shop, automod,
+    applications, automessages, social
+)
 
 # Register routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -61,6 +65,11 @@ app.include_router(emails.router, prefix="/api/emails", tags=["Email Notificatio
 app.include_router(credits.router, tags=["Credits"])
 app.include_router(shop.router, tags=["Shop"])
 app.include_router(automod.router, prefix="/api/automod", tags=["AutoMod"])
+
+# Phase 5.7 - Advanced Systems APIs
+app.include_router(applications.router, tags=["Applications"])
+app.include_router(automessages.router, tags=["Auto Messages"])
+app.include_router(social.router, tags=["Social Integration"])
 
 @app.get("/")
 async def root():

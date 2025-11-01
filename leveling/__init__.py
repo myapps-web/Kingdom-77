@@ -5,4 +5,4 @@ XP tracking, levels, and rank system
 """
 
 __all__ = ['LevelingSystem', 'get_leveling_system']
-__version__ = '3.0.0'
+__version__ = '4.0.0'
